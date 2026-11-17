@@ -6,6 +6,8 @@ import { EventPage } from './pages/EventPage'
 import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyTicketsPage } from './pages/MyTicketsPage'
+import { ResaleCheckoutPage } from './pages/ResaleCheckoutPage'
+import { ResalePage } from './pages/ResalePage'
 import { TicketsProvider } from './tickets/TicketsProvider'
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
               <Route path="/events/:eventId" element={<EventPage />} />
               <Route path="/events/:eventId/checkout/:batchId" element={<CheckoutPage />} />
               <Route path="/tickets" element={<MyTicketsPage />} />
+              <Route path="/resale" element={<ResalePage />} />
+              <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

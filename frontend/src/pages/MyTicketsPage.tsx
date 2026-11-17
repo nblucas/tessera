@@ -40,6 +40,7 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
   const refreshIn = QR_REFRESH_SECONDS - (seconds % QR_REFRESH_SECONDS)
   const isValid = ticket.status === 'valid'
   const isListed = ticket.status === 'listed'
+  const isResold = ticket.status === 'cancelled' && ticket.listingPriceCents !== undefined
 
   return (
     <article className="ticket-card">
@@ -53,8 +54,10 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
         </p>
         <p className="ticket-id">#{ticket.id.slice(0, 8).toUpperCase()}</p>
         <span className={`badge status-${ticket.status}`}>
-          {STATUS_LABELS[ticket.status]}
-          {isListed && ticket.listingPriceCents && ` · ${formatPrice(ticket.listingPriceCents)}`}
+          {isResold ? 'Resold' : STATUS_LABELS[ticket.status]}
+          {(isListed || isResold) &&
+            ticket.listingPriceCents !== undefined &&
+            ` · ${formatPrice(ticket.listingPriceCents)}`}
         </span>
 
         {isValid && !reselling && (

@@ -16,6 +16,7 @@ export function AppHeader() {
           <NavLink to="/" end>
             Events
           </NavLink>
+          <NavLink to="/resale">Resale</NavLink>
           <NavLink to="/tickets">My tickets</NavLink>
         </nav>
       </div>

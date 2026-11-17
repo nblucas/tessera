@@ -62,8 +62,33 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  function buyResale(ticketId: string, buyerEmail: string): Ticket | null {
+    const listed = tickets.find((ticket) => ticket.id === ticketId && ticket.status === 'listed')
+    if (!listed || listed.listingPriceCents === undefined) return null
+
+    const ticket: Ticket = {
+      id: crypto.randomUUID(),
+      eventId: listed.eventId,
+      batchId: listed.batchId,
+      ownerEmail: buyerEmail,
+      priceCents: listed.listingPriceCents,
+      purchasedAt: new Date().toISOString(),
+      status: 'valid',
+      resoldFromId: listed.id,
+    }
+    update((current) => [
+      ...current.map((item) =>
+        item.id === listed.id ? { ...item, status: 'cancelled' as const } : item,
+      ),
+      ticket,
+    ])
+    return ticket
+  }
+
   return (
-    <TicketsContext.Provider value={{ tickets, issueTicket, listTicket, unlistTicket }}>
+    <TicketsContext.Provider
+      value={{ tickets, issueTicket, listTicket, unlistTicket, buyResale }}
+    >
       {children}
     </TicketsContext.Provider>
   )

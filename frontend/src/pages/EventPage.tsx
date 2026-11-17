@@ -1,5 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router'
+import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
+import { ResaleList } from '../components/ResaleList'
+import { useTickets } from '../tickets/context'
 import { EVENTS, type Batch } from '../data/events'
 import { formatDate, formatPrice } from '../lib/format'
 
@@ -26,7 +29,12 @@ function BatchRow({ batch, onBuy }: { batch: Batch; onBuy: () => void }) {
 export function EventPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { tickets } = useTickets()
   const event = EVENTS.find((item) => item.id === eventId)
+  const resale = tickets.filter(
+    (ticket) => ticket.eventId === eventId && ticket.status === 'listed',
+  )
 
   if (!event) {
     return (
@@ -66,6 +74,13 @@ export function EventPage() {
             />
           ))}
         </ul>
+
+        {resale.length > 0 && (
+          <>
+            <h2 className="section-title">Resale</h2>
+            <ResaleList tickets={resale} currentEmail={user?.email} />
+          </>
+        )}
       </main>
     </>
   )

@@ -610,6 +610,11 @@ button:disabled:hover {
   border-color: #ec8d50;
 }
 
+.resale-note {
+  margin-top: 8px;
+  text-align: left;
+}
+
 .ticket-action {
   margin-top: 12px;
 }
