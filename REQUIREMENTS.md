@@ -5,7 +5,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 ## Student
 
 - [x] 1. Sign in with e-mail (fake, just to get in)
-- [ ] 2. List of the association's events
+- [x] 2. List of the association's events
 - [ ] 3. Event page with batches and prices, and a "Buy" button
 - [ ] 4. Pix checkout (QR code screen and a "simulate payment" button)
 - [ ] 5. My tickets, with the QR code for each one
