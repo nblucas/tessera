@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
 import { RequireAuth } from './auth/RequireAuth'
+import { EventPage } from './pages/EventPage'
 import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 
@@ -15,6 +16,14 @@ function App() {
             element={
               <RequireAuth>
                 <EventsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/events/:eventId"
+            element={
+              <RequireAuth>
+                <EventPage />
               </RequireAuth>
             }
           />

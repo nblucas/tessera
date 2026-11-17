@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { AppHeader } from '../components/AppHeader'
 import { ASSOCIATION_NAME, EVENTS, type Event } from '../data/events'
 import { formatDate, formatPrice } from '../lib/format'
@@ -12,7 +13,7 @@ function EventCard({ event }: { event: Event }) {
   const lowestPrice = Math.min(...available.map((batch) => batch.priceCents))
 
   return (
-    <article className="event-card">
+    <Link to={`/events/${event.id}`} className="event-card">
       <div className="event-cover" style={{ background: event.color }} />
       <div className="event-body">
         <p className="event-date">{formatDate(event.date)}</p>
@@ -26,7 +27,7 @@ function EventCard({ event }: { event: Event }) {
           )}
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
 
