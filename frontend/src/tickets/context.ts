@@ -12,9 +12,14 @@ export type Ticket = {
   status: TicketStatus
   listingPriceCents?: number
   resoldFromId?: string
+  sellerId?: string
+  commissionCents?: number
 }
 
-export type NewTicket = Pick<Ticket, 'eventId' | 'batchId' | 'ownerEmail' | 'priceCents'>
+export type NewTicket = Pick<
+  Ticket,
+  'eventId' | 'batchId' | 'ownerEmail' | 'priceCents' | 'sellerId' | 'commissionCents'
+>
 
 export type TicketsContextValue = {
   tickets: Ticket[]

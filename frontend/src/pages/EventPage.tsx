@@ -1,9 +1,11 @@
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { ResaleList } from '../components/ResaleList'
+import { SellerLinkBox } from '../components/SellerLinkBox'
 import { useTickets } from '../tickets/context'
 import { EVENTS, type Batch } from '../data/events'
+import { findSeller, findSellerByEmail } from '../data/sellers'
 import { formatDate, formatPrice } from '../lib/format'
 
 function BatchRow({ batch, onBuy }: { batch: Batch; onBuy: () => void }) {
@@ -31,6 +33,9 @@ export function EventPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { tickets } = useTickets()
+  const [searchParams] = useSearchParams()
+  const referrer = findSeller(searchParams.get('seller'))
+  const currentSeller = findSellerByEmail(user?.email)
   const event = EVENTS.find((item) => item.id === eventId)
   const resale = tickets.filter(
     (ticket) => ticket.eventId === eventId && ticket.status === 'listed',
@@ -64,13 +69,24 @@ export function EventPage() {
         <p className="muted">{event.location}</p>
         <p className="event-description">{event.description}</p>
 
+        {currentSeller && <SellerLinkBox seller={currentSeller} eventId={event.id} />}
+
         <h2 className="section-title">Tickets</h2>
+        {referrer && (
+          <p className="referrer-note">
+            You're buying through <strong>{referrer.name}</strong>'s link.
+          </p>
+        )}
         <ul className="batch-list">
           {event.batches.map((batch) => (
             <BatchRow
               key={batch.id}
               batch={batch}
-              onBuy={() => navigate(`/events/${event.id}/checkout/${batch.id}`)}
+              onBuy={() =>
+                navigate(
+                  `/events/${event.id}/checkout/${batch.id}${referrer ? `?seller=${referrer.id}` : ''}`,
+                )
+              }
             />
           ))}
         </ul>

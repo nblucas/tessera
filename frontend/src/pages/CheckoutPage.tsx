@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { PaymentSuccess } from '../components/PaymentSuccess'
 import { PixPayment } from '../components/PixPayment'
 import { EVENTS } from '../data/events'
+import { commissionFor, findSeller } from '../data/sellers'
 import { formatDate, formatPrice } from '../lib/format'
 import { useTickets, type Ticket } from '../tickets/context'
 
 export function CheckoutPage() {
   const { eventId, batchId } = useParams()
+  const [searchParams] = useSearchParams()
+  const seller = findSeller(searchParams.get('seller'))
   const { user } = useAuth()
   const { issueTicket } = useTickets()
   const [ticket, setTicket] = useState<Ticket | null>(null)
@@ -40,6 +43,8 @@ export function CheckoutPage() {
         batchId: batch.id,
         ownerEmail: user.email,
         priceCents: batch.priceCents,
+        sellerId: seller?.id,
+        commissionCents: seller ? commissionFor(seller, batch.priceCents) : undefined,
       }),
     )
   }
@@ -49,7 +54,10 @@ export function CheckoutPage() {
       <AppHeader />
       <main className="page checkout">
         {!ticket && (
-          <Link to={`/events/${event.id}`} className="back-link">
+          <Link
+            to={`/events/${event.id}${seller ? `?seller=${seller.id}` : ''}`}
+            className="back-link"
+          >
             ← Back to event
           </Link>
         )}
@@ -61,6 +69,7 @@ export function CheckoutPage() {
             <span>{batch.name}</span>
             <strong>{formatPrice(batch.priceCents)}</strong>
           </div>
+          {seller && <p className="hint resale-note">Sold by {seller.name}</p>}
         </section>
 
         {ticket ? (
