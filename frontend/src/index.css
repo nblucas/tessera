@@ -624,6 +624,60 @@ button:disabled:hover {
   margin-top: 24px;
 }
 
+.board-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.board-tabs a {
+  padding: 8px 14px;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.board-tabs a:hover {
+  color: var(--text-h);
+}
+
+.board-tabs a.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.percent-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.percent-input input {
+  width: 64px;
+  text-align: right;
+}
+
+.add-seller-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .add-seller-fields {
+    grid-template-columns: 1fr auto;
+  }
+
+  .add-seller-fields input:not(.percent-input input) {
+    grid-column: 1 / -1;
+  }
+}
+
 .board-event {
   display: flex;
   align-items: center;

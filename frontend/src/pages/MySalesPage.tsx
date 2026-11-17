@@ -1,7 +1,7 @@
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { useEvents } from '../events/context'
-import { findSellerByEmail } from '../data/sellers'
+import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
 import { useTickets } from '../tickets/context'
 
@@ -9,6 +9,7 @@ export function MySalesPage() {
   const { user } = useAuth()
   const { tickets } = useTickets()
   const { findEvent } = useEvents()
+  const { findSellerByEmail } = useSellers()
   const seller = findSellerByEmail(user?.email)
 
   if (!seller) {

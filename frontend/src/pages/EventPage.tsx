@@ -6,7 +6,7 @@ import { SellerLinkBox } from '../components/SellerLinkBox'
 import { useTickets } from '../tickets/context'
 import type { Batch } from '../data/events'
 import { useEvents } from '../events/context'
-import { findSeller, findSellerByEmail } from '../data/sellers'
+import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
 
 function BatchRow({ batch, onBuy }: { batch: Batch; onBuy: () => void }) {
@@ -35,6 +35,7 @@ export function EventPage() {
   const { user } = useAuth()
   const { tickets } = useTickets()
   const [searchParams] = useSearchParams()
+  const { findSeller, findSellerByEmail } = useSellers()
   const referrer = findSeller(searchParams.get('seller'))
   const currentSeller = findSellerByEmail(user?.email)
   const { findEvent } = useEvents()

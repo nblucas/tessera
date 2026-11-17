@@ -5,13 +5,15 @@ import { AppHeader } from '../components/AppHeader'
 import { PaymentSuccess } from '../components/PaymentSuccess'
 import { PixPayment } from '../components/PixPayment'
 import { useEvents } from '../events/context'
-import { commissionFor, findSeller } from '../data/sellers'
+import { commissionFor } from '../data/sellers'
+import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
 import { useTickets, type Ticket } from '../tickets/context'
 
 export function CheckoutPage() {
   const { eventId, batchId } = useParams()
   const [searchParams] = useSearchParams()
+  const { findSeller } = useSellers()
   const seller = findSeller(searchParams.get('seller'))
   const { user } = useAuth()
   const { issueTicket } = useTickets()

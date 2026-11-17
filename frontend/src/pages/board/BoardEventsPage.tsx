@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { AppHeader } from '../../components/AppHeader'
+import { BoardTabs } from '../../components/BoardTabs'
 import { useEvents } from '../../events/context'
 import { formatDate, formatPrice } from '../../lib/format'
 
@@ -20,6 +21,7 @@ export function BoardEventsPage() {
             New event
           </Link>
         </div>
+        <BoardTabs />
 
         <ul className="batch-list board-list">
           {sorted.map((event) => {
