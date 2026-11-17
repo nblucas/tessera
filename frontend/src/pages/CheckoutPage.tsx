@@ -95,8 +95,8 @@ export function CheckoutPage() {
             <h2>Payment confirmed</h2>
             <p className="muted">Your ticket for {event.title} is ready.</p>
             <p className="ticket-id">Ticket #{ticket.id.slice(0, 8).toUpperCase()}</p>
-            <Link to="/" className="button-link">
-              Back to events
+            <Link to="/tickets" className="button-link">
+              View my tickets
             </Link>
           </section>
         ) : (

@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { Link, NavLink } from 'react-router'
 import { useAuth } from '../auth/context'
 import { TesseraMark } from './TesseraMark'
 
@@ -7,10 +7,18 @@ export function AppHeader() {
 
   return (
     <header className="topbar">
-      <Link to="/" className="topbar-brand">
-        <TesseraMark size={24} />
-        Tessera
-      </Link>
+      <div className="topbar-left">
+        <Link to="/" className="topbar-brand">
+          <TesseraMark size={24} />
+          Tessera
+        </Link>
+        <nav className="topbar-nav">
+          <NavLink to="/" end>
+            Events
+          </NavLink>
+          <NavLink to="/tickets">My tickets</NavLink>
+        </nav>
+      </div>
       <div className="topbar-user">
         <span className="muted">{user?.email}</span>
         <button type="button" className="secondary" onClick={signOut}>
