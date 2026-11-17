@@ -9,7 +9,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 - [x] 3. Event page with batches and prices, and a "Buy" button
 - [x] 4. Pix checkout (QR code screen and a "simulate payment" button)
 - [x] 5. My tickets, with the QR code for each one
-- [ ] 6. Resell a ticket: choose a price, within the resale cap
+- [x] 6. Resell a ticket: choose a price, within the resale cap
 - [ ] 7. List of tickets for resale, with a button to buy
 
 ## Seller

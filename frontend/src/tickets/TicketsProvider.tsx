@@ -23,6 +23,18 @@ function saveTickets(tickets: Ticket[]) {
 export function TicketsProvider({ children }: { children: ReactNode }) {
   const [tickets, setTickets] = useState<Ticket[]>(loadTickets)
 
+  function update(change: (current: Ticket[]) => Ticket[]) {
+    setTickets((current) => {
+      const next = change(current)
+      saveTickets(next)
+      return next
+    })
+  }
+
+  function updateTicket(ticketId: string, change: (ticket: Ticket) => Ticket) {
+    update((current) => current.map((ticket) => (ticket.id === ticketId ? change(ticket) : ticket)))
+  }
+
   function issueTicket(input: NewTicket): Ticket {
     const ticket: Ticket = {
       ...input,
@@ -30,15 +42,29 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
       purchasedAt: new Date().toISOString(),
       status: 'valid',
     }
-    setTickets((current) => {
-      const next = [...current, ticket]
-      saveTickets(next)
-      return next
-    })
+    update((current) => [...current, ticket])
     return ticket
   }
 
+  function listTicket(ticketId: string, priceCents: number) {
+    updateTicket(ticketId, (ticket) =>
+      ticket.status === 'valid'
+        ? { ...ticket, status: 'listed', listingPriceCents: priceCents }
+        : ticket,
+    )
+  }
+
+  function unlistTicket(ticketId: string) {
+    updateTicket(ticketId, (ticket) =>
+      ticket.status === 'listed'
+        ? { ...ticket, status: 'valid', listingPriceCents: undefined }
+        : ticket,
+    )
+  }
+
   return (
-    <TicketsContext.Provider value={{ tickets, issueTicket }}>{children}</TicketsContext.Provider>
+    <TicketsContext.Provider value={{ tickets, issueTicket, listTicket, unlistTicket }}>
+      {children}
+    </TicketsContext.Provider>
   )
 }

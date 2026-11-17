@@ -3,8 +3,10 @@ import { Link } from 'react-router'
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { FakeQrCode } from '../components/FakeQrCode'
+import { ResaleForm } from '../components/ResaleForm'
 import { EVENTS } from '../data/events'
 import { formatDate, formatPrice } from '../lib/format'
+import { maxResalePrice } from '../lib/resale'
 import { useTickets, type Ticket, type TicketStatus } from '../tickets/context'
 
 const QR_REFRESH_SECONDS = 30
@@ -26,6 +28,9 @@ function useSecondsTick(): number {
 }
 
 function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
+  const { listTicket, unlistTicket } = useTickets()
+  const [reselling, setReselling] = useState(false)
+
   const event = EVENTS.find((item) => item.id === ticket.eventId)
   const batch = event?.batches.find((item) => item.id === ticket.batchId)
   if (!event || !batch) return null
@@ -33,7 +38,8 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
   const seconds = Math.floor(now / 1000)
   const timeSlot = Math.floor(seconds / QR_REFRESH_SECONDS)
   const refreshIn = QR_REFRESH_SECONDS - (seconds % QR_REFRESH_SECONDS)
-  const showQr = ticket.status === 'valid'
+  const isValid = ticket.status === 'valid'
+  const isListed = ticket.status === 'listed'
 
   return (
     <article className="ticket-card">
@@ -46,9 +52,38 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
           {batch.name} · {formatPrice(ticket.priceCents)}
         </p>
         <p className="ticket-id">#{ticket.id.slice(0, 8).toUpperCase()}</p>
-        <span className={`badge status-${ticket.status}`}>{STATUS_LABELS[ticket.status]}</span>
+        <span className={`badge status-${ticket.status}`}>
+          {STATUS_LABELS[ticket.status]}
+          {isListed && ticket.listingPriceCents && ` · ${formatPrice(ticket.listingPriceCents)}`}
+        </span>
+
+        {isValid && !reselling && (
+          <button type="button" className="secondary ticket-action" onClick={() => setReselling(true)}>
+            Resell
+          </button>
+        )}
+        {isListed && (
+          <>
+            <p className="hint">This ticket can't be used at the gate while it is listed.</p>
+            <button type="button" className="secondary ticket-action" onClick={() => unlistTicket(ticket.id)}>
+              Cancel listing
+            </button>
+          </>
+        )}
+        {isValid && reselling && (
+          <ResaleForm
+            faceValueCents={batch.priceCents}
+            capPercent={event.resaleCapPercent}
+            maxPriceCents={maxResalePrice(batch.priceCents, event.resaleCapPercent)}
+            onSubmit={(priceCents) => {
+              listTicket(ticket.id, priceCents)
+              setReselling(false)
+            }}
+            onCancel={() => setReselling(false)}
+          />
+        )}
       </div>
-      {showQr && (
+      {isValid && (
         <div className="ticket-qr">
           <FakeQrCode value={`${ticket.id}:${timeSlot}`} size={150} />
           <p className="hint">Refreshes in {refreshIn}s</p>

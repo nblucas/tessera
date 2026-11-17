@@ -10,6 +10,7 @@ export type Ticket = {
   priceCents: number
   purchasedAt: string
   status: TicketStatus
+  listingPriceCents?: number
 }
 
 export type NewTicket = Pick<Ticket, 'eventId' | 'batchId' | 'ownerEmail' | 'priceCents'>
@@ -17,6 +18,8 @@ export type NewTicket = Pick<Ticket, 'eventId' | 'batchId' | 'ownerEmail' | 'pri
 export type TicketsContextValue = {
   tickets: Ticket[]
   issueTicket: (ticket: NewTicket) => Ticket
+  listTicket: (ticketId: string, priceCents: number) => void
+  unlistTicket: (ticketId: string) => void
 }
 
 export const TicketsContext = createContext<TicketsContextValue | null>(null)
