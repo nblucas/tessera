@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { formatPrice } from '../lib/format'
+import { centsToInput, formatPrice, parseReais } from '../lib/format'
 import { PLATFORM_FEE_PERCENT, ROYALTY_PERCENT, resaleSplit } from '../lib/resale'
 
 type ResaleFormProps = {
@@ -10,15 +10,6 @@ type ResaleFormProps = {
   onCancel: () => void
 }
 
-function parseReais(text: string): number | null {
-  const trimmed = text.trim()
-  const normalized = trimmed.includes(',')
-    ? trimmed.replace(/\./g, '').replace(',', '.')
-    : trimmed
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null
-  return Math.round(Number(normalized) * 100)
-}
-
 export function ResaleForm({
   faceValueCents,
   maxPriceCents,
@@ -26,7 +17,7 @@ export function ResaleForm({
   onSubmit,
   onCancel,
 }: ResaleFormProps) {
-  const [text, setText] = useState((faceValueCents / 100).toFixed(2).replace('.', ','))
+  const [text, setText] = useState(centsToInput(faceValueCents))
   const [error, setError] = useState<string | null>(null)
 
   const priceCents = parseReais(text)

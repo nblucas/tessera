@@ -19,7 +19,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 
 ## Board
 
-- [ ] 10. Create and edit events and batches (price, quantity, resale cap)
+- [x] 10. Create and edit events and batches (price, quantity, resale cap)
 - [ ] 11. Register sellers and their commission percentage
 - [ ] 12. Submit an expense (amount, category, event, receipt upload)
 - [ ] 13. Approve or reject expenses proposed by other directors

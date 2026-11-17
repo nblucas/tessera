@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router'
-import { EVENTS } from '../data/events'
+import { useEvents } from '../events/context'
 import { formatDate, formatPrice } from '../lib/format'
 import type { Ticket } from '../tickets/context'
 
@@ -11,11 +11,12 @@ type ResaleListProps = {
 
 export function ResaleList({ tickets, currentEmail, showEvent = false }: ResaleListProps) {
   const navigate = useNavigate()
+  const { findEvent } = useEvents()
 
   return (
     <ul className="batch-list resale-list">
       {tickets.map((ticket) => {
-        const event = EVENTS.find((item) => item.id === ticket.eventId)
+        const event = findEvent(ticket.eventId)
         const batch = event?.batches.find((item) => item.id === ticket.batchId)
         if (!event || !batch || ticket.listingPriceCents === undefined) return null
         const isMine = ticket.ownerEmail === currentEmail

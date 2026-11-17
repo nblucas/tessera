@@ -4,7 +4,7 @@ import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { FakeQrCode } from '../components/FakeQrCode'
 import { ResaleForm } from '../components/ResaleForm'
-import { EVENTS } from '../data/events'
+import { useEvents } from '../events/context'
 import { formatDate, formatPrice } from '../lib/format'
 import { maxResalePrice } from '../lib/resale'
 import { useTickets, type Ticket, type TicketStatus } from '../tickets/context'
@@ -31,7 +31,9 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
   const { listTicket, unlistTicket } = useTickets()
   const [reselling, setReselling] = useState(false)
 
-  const event = EVENTS.find((item) => item.id === ticket.eventId)
+  const { findEvent } = useEvents()
+
+  const event = findEvent(ticket.eventId)
   const batch = event?.batches.find((item) => item.id === ticket.batchId)
   if (!event || !batch) return null
 

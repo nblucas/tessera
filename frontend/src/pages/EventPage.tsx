@@ -4,7 +4,8 @@ import { AppHeader } from '../components/AppHeader'
 import { ResaleList } from '../components/ResaleList'
 import { SellerLinkBox } from '../components/SellerLinkBox'
 import { useTickets } from '../tickets/context'
-import { EVENTS, type Batch } from '../data/events'
+import type { Batch } from '../data/events'
+import { useEvents } from '../events/context'
 import { findSeller, findSellerByEmail } from '../data/sellers'
 import { formatDate, formatPrice } from '../lib/format'
 
@@ -36,7 +37,8 @@ export function EventPage() {
   const [searchParams] = useSearchParams()
   const referrer = findSeller(searchParams.get('seller'))
   const currentSeller = findSellerByEmail(user?.email)
-  const event = EVENTS.find((item) => item.id === eventId)
+  const { findEvent } = useEvents()
+  const event = findEvent(eventId)
   const resale = tickets.filter(
     (ticket) => ticket.eventId === eventId && ticket.status === 'listed',
   )

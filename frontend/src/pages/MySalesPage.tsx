@@ -1,6 +1,6 @@
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
-import { EVENTS } from '../data/events'
+import { useEvents } from '../events/context'
 import { findSellerByEmail } from '../data/sellers'
 import { formatDate, formatPrice } from '../lib/format'
 import { useTickets } from '../tickets/context'
@@ -8,6 +8,7 @@ import { useTickets } from '../tickets/context'
 export function MySalesPage() {
   const { user } = useAuth()
   const { tickets } = useTickets()
+  const { findEvent } = useEvents()
   const seller = findSellerByEmail(user?.email)
 
   if (!seller) {
@@ -60,7 +61,7 @@ export function MySalesPage() {
         ) : (
           <ul className="batch-list">
             {sales.map((ticket) => {
-              const event = EVENTS.find((item) => item.id === ticket.eventId)
+              const event = findEvent(ticket.eventId)
               const batch = event?.batches.find((item) => item.id === ticket.batchId)
               return (
                 <li key={ticket.id} className="batch-row">

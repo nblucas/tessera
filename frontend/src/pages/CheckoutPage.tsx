@@ -4,7 +4,7 @@ import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { PaymentSuccess } from '../components/PaymentSuccess'
 import { PixPayment } from '../components/PixPayment'
-import { EVENTS } from '../data/events'
+import { useEvents } from '../events/context'
 import { commissionFor, findSeller } from '../data/sellers'
 import { formatDate, formatPrice } from '../lib/format'
 import { useTickets, type Ticket } from '../tickets/context'
@@ -17,7 +17,8 @@ export function CheckoutPage() {
   const { issueTicket } = useTickets()
   const [ticket, setTicket] = useState<Ticket | null>(null)
 
-  const event = EVENTS.find((item) => item.id === eventId)
+  const { findEvent } = useEvents()
+  const event = findEvent(eventId)
   const batch = event?.batches.find((item) => item.id === batchId)
 
   if (!event || !batch || !user || batch.sold >= batch.quantity) {

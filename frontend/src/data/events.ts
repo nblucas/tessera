@@ -19,7 +19,7 @@ export type Event = {
 
 export const ASSOCIATION_NAME = 'Atlética Integrada'
 
-export const EVENTS: Event[] = [
+export const SEED_EVENTS: Event[] = [
   {
     id: 'end-of-year-party',
     title: 'End of Year Party',

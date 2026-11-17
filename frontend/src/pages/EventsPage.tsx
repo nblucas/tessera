@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { AppHeader } from '../components/AppHeader'
-import { ASSOCIATION_NAME, EVENTS, type Event } from '../data/events'
+import { ASSOCIATION_NAME, type Event } from '../data/events'
+import { useEvents } from '../events/context'
 import { formatDate, formatPrice } from '../lib/format'
 
 function availableBatches(event: Event) {
@@ -32,7 +33,8 @@ function EventCard({ event }: { event: Event }) {
 }
 
 export function EventsPage() {
-  const events = [...EVENTS].sort((a, b) => a.date.localeCompare(b.date))
+  const { events: all } = useEvents()
+  const events = [...all].sort((a, b) => a.date.localeCompare(b.date))
 
   return (
     <>
