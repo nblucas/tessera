@@ -610,6 +610,47 @@ button:disabled:hover {
   border-color: #ec8d50;
 }
 
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.stat {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stat-value {
+  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.stat-accent {
+  color: var(--accent);
+}
+
+.sale-amounts {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.sales-note {
+  margin-top: 16px;
+  text-align: left;
+}
+
 .seller-box {
   max-width: 640px;
   margin-top: 24px;

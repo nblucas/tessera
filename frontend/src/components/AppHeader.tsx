@@ -1,9 +1,11 @@
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../auth/context'
+import { findSellerByEmail } from '../data/sellers'
 import { TesseraMark } from './TesseraMark'
 
 export function AppHeader() {
   const { user, signOut } = useAuth()
+  const isSeller = findSellerByEmail(user?.email) !== undefined
 
   return (
     <header className="topbar">
@@ -18,6 +20,7 @@ export function AppHeader() {
           </NavLink>
           <NavLink to="/resale">Resale</NavLink>
           <NavLink to="/tickets">My tickets</NavLink>
+          {isSeller && <NavLink to="/sales">My sales</NavLink>}
         </nav>
       </div>
       <div className="topbar-user">

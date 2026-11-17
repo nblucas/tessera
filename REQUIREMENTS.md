@@ -15,7 +15,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 ## Seller
 
 - [x] 8. Personal sales link (`/events/x?seller=y`)
-- [ ] 9. "My sales" screen with accumulated commission
+- [x] 9. "My sales" screen with accumulated commission
 
 ## Board
 
