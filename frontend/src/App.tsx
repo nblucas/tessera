@@ -3,9 +3,12 @@ import { AuthProvider } from './auth/AuthProvider'
 import { RequireAuth } from './auth/RequireAuth'
 import { BoardOnly } from './components/BoardOnly'
 import { EventsProvider } from './events/EventsProvider'
+import { ExpensesProvider } from './expenses/ExpensesProvider'
 import { BoardEventsPage } from './pages/board/BoardEventsPage'
+import { BoardExpensesPage } from './pages/board/BoardExpensesPage'
 import { BoardSellersPage } from './pages/board/BoardSellersPage'
 import { EventFormPage } from './pages/board/EventFormPage'
+import { ExpenseFormPage } from './pages/board/ExpenseFormPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { EventPage } from './pages/EventPage'
 import { EventsPage } from './pages/EventsPage'
@@ -17,47 +20,57 @@ import { ResalePage } from './pages/ResalePage'
 import { SellersProvider } from './sellers/SellersProvider'
 import { TicketsProvider } from './tickets/TicketsProvider'
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <RequireAuth>
+            <Outlet />
+          </RequireAuth>
+        }
+      >
+        <Route path="/" element={<EventsPage />} />
+        <Route path="/events/:eventId" element={<EventPage />} />
+        <Route path="/events/:eventId/checkout/:batchId" element={<CheckoutPage />} />
+        <Route path="/tickets" element={<MyTicketsPage />} />
+        <Route path="/resale" element={<ResalePage />} />
+        <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
+        <Route path="/sales" element={<MySalesPage />} />
+        <Route
+          path="/board"
+          element={
+            <BoardOnly>
+              <Outlet />
+            </BoardOnly>
+          }
+        >
+          <Route index element={<Navigate to="/board/events" replace />} />
+          <Route path="events" element={<BoardEventsPage />} />
+          <Route path="events/new" element={<EventFormPage />} />
+          <Route path="events/:eventId" element={<EventFormPage />} />
+          <Route path="sellers" element={<BoardSellersPage />} />
+          <Route path="expenses" element={<BoardExpensesPage />} />
+          <Route path="expenses/new" element={<ExpenseFormPage />} />
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
 function App() {
   return (
     <AuthProvider>
       <EventsProvider>
         <SellersProvider>
           <TicketsProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                  element={
-                    <RequireAuth>
-                      <Outlet />
-                    </RequireAuth>
-                  }
-                >
-                  <Route path="/" element={<EventsPage />} />
-                  <Route path="/events/:eventId" element={<EventPage />} />
-                  <Route path="/events/:eventId/checkout/:batchId" element={<CheckoutPage />} />
-                  <Route path="/tickets" element={<MyTicketsPage />} />
-                  <Route path="/resale" element={<ResalePage />} />
-                  <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
-                  <Route path="/sales" element={<MySalesPage />} />
-                  <Route
-                    path="/board"
-                    element={
-                      <BoardOnly>
-                        <Outlet />
-                      </BoardOnly>
-                    }
-                  >
-                    <Route index element={<Navigate to="/board/events" replace />} />
-                    <Route path="events" element={<BoardEventsPage />} />
-                    <Route path="events/new" element={<EventFormPage />} />
-                    <Route path="events/:eventId" element={<EventFormPage />} />
-                    <Route path="sellers" element={<BoardSellersPage />} />
-                  </Route>
-                </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </BrowserRouter>
+            <ExpensesProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ExpensesProvider>
           </TicketsProvider>
         </SellersProvider>
       </EventsProvider>

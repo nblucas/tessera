@@ -650,6 +650,57 @@ button:disabled:hover {
   border-bottom-color: var(--accent);
 }
 
+select {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input[type='file'] {
+  padding: 8px;
+}
+
+.receipt-hint {
+  margin-top: 6px;
+  text-align: left;
+  word-break: break-all;
+}
+
+.hash {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-h);
+}
+
+.expense-meta {
+  margin-top: 4px;
+  text-align: left;
+}
+
+.expense-pending {
+  color: #b8692e;
+  border-color: #ec8d50;
+}
+
+.expense-approved {
+  color: #2f8a7d;
+  border-color: #51b8aa;
+}
+
+.expense-rejected {
+  color: var(--error);
+  border-color: var(--error);
+}
+
 .percent-input {
   display: flex;
   align-items: center;
