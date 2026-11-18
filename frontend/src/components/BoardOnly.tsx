@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import { useAuth } from '../auth/context'
-import { isBoardMember } from '../data/board'
+import { useBoard } from '../board/context'
 import { AppHeader } from './AppHeader'
 
 export function BoardOnly({ children }: { children: ReactNode }) {
   const { user } = useAuth()
+  const { isBoardMember } = useBoard()
 
   if (!isBoardMember(user?.email)) {
     return (

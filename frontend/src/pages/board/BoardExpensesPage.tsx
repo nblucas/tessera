@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import { useAuth } from '../../auth/context'
 import { AppHeader } from '../../components/AppHeader'
 import { BoardTabs } from '../../components/BoardTabs'
-import { BOARD_MAJORITY, BOARD_MEMBERS, boardMemberName } from '../../data/board'
+import { useBoard } from '../../board/context'
 import type { Expense, ExpenseStatus } from '../../data/expenses'
 import { useEvents } from '../../events/context'
 import { useExpenses } from '../../expenses/context'
@@ -18,6 +18,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
   const { user } = useAuth()
   const { findEvent } = useEvents()
   const { voteOnExpense } = useExpenses()
+  const { majority, memberName } = useBoard()
   const event = findEvent(expense.eventId)
 
   const email = user?.email ?? ''
@@ -45,11 +46,10 @@ function ExpenseRow({ expense }: { expense: Expense }) {
 
       <div className="expense-details">
         <p className="hint expense-meta">
-          Proposed by {boardMemberName(expense.proposedBy)} · Approved by{' '}
-          {expense.approvals.map(boardMemberName).join(', ')} ({expense.approvals.length}/
-          {BOARD_MAJORITY})
+          Proposed by {memberName(expense.proposedBy)} · Approved by{' '}
+          {expense.approvals.map(memberName).join(', ')} ({expense.approvals.length}/{majority})
           {expense.rejections.length > 0 &&
-            ` · Rejected by ${expense.rejections.map(boardMemberName).join(', ')}`}
+            ` · Rejected by ${expense.rejections.map(memberName).join(', ')}`}
         </p>
         <a
           className="receipt-link"
@@ -87,6 +87,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
 
 export function BoardExpensesPage() {
   const { expenses } = useExpenses()
+  const { majority, members } = useBoard()
   const sorted = [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   const pending = sorted.filter((expense) => expense.status === 'pending')
   const decided = sorted.filter((expense) => expense.status !== 'pending')
@@ -99,8 +100,7 @@ export function BoardExpensesPage() {
           <div>
             <h1>Board · Expenses</h1>
             <p className="muted">
-              Every expense needs a receipt and {BOARD_MAJORITY} of {BOARD_MEMBERS.length} board
-              approvals.
+              Every expense needs a receipt and {majority} of {members.length} board approvals.
             </p>
           </div>
           <Link to="/board/expenses/new" className="button-link">

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { BOARD_MAJORITY } from '../data/board'
+import { useBoard } from '../board/context'
 import type { Expense } from '../data/expenses'
 import { ExpensesContext, type NewExpense } from './context'
 
@@ -24,6 +24,7 @@ function persist(expenses: Expense[]) {
 
 export function ExpensesProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<Expense[]>(loadExpenses)
+  const { majority } = useBoard()
 
   function update(change: (current: Expense[]) => Expense[]) {
     setExpenses((current) => {
@@ -59,9 +60,9 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
         const rejections =
           vote === 'reject' ? [...expense.rejections, email] : expense.rejections
         const status =
-          approvals.length >= BOARD_MAJORITY
+          approvals.length >= majority
             ? 'approved'
-            : rejections.length >= BOARD_MAJORITY
+            : rejections.length >= majority
               ? 'rejected'
               : 'pending'
         return { ...expense, approvals, rejections, status }

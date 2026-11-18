@@ -734,6 +734,66 @@ input[type='file'] {
   border-color: var(--error);
 }
 
+.term-card {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.term-current {
+  border-color: var(--accent);
+}
+
+.term-pending {
+  border-color: #ec8d50;
+  border-style: dashed;
+}
+
+.term-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.term-list {
+  display: grid;
+  gap: 8px;
+}
+
+.member-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.member-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .member-editor-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .member-editor-row input:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 .percent-input {
   display: flex;
   align-items: center;

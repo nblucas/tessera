@@ -3,18 +3,40 @@ export type BoardMember = {
   email: string
 }
 
-export const BOARD_MEMBERS: BoardMember[] = [
-  { name: 'Diego Ramos', email: 'diego@demo.com' },
-  { name: 'Elisa Prado', email: 'elisa@demo.com' },
-  { name: 'Felipe Costa', email: 'felipe@demo.com' },
-]
-
-export const BOARD_MAJORITY = Math.floor(BOARD_MEMBERS.length / 2) + 1
-
-export function boardMemberName(email: string): string {
-  return BOARD_MEMBERS.find((member) => member.email === email)?.name ?? email
+export type BoardTerm = {
+  number: number
+  members: BoardMember[]
+  startedAt: string
+  endedAt?: string
 }
 
-export function isBoardMember(email: string | undefined): boolean {
-  return BOARD_MEMBERS.some((member) => member.email === email)
+export type Handover = {
+  proposedBy: string
+  newMembers: BoardMember[]
+  approvals: string[]
+  createdAt: string
+}
+
+export type BoardState = {
+  current: BoardTerm
+  past: BoardTerm[]
+  handover: Handover | null
+}
+
+export const SEED_BOARD: BoardState = {
+  current: {
+    number: 1,
+    members: [
+      { name: 'Diego Ramos', email: 'diego@demo.com' },
+      { name: 'Elisa Prado', email: 'elisa@demo.com' },
+      { name: 'Felipe Costa', email: 'felipe@demo.com' },
+    ],
+    startedAt: '2026-03-01T00:00:00-03:00',
+  },
+  past: [],
+  handover: null,
+}
+
+export function majorityOf(count: number): number {
+  return Math.floor(count / 2) + 1
 }

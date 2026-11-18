@@ -1,11 +1,13 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
 import { RequireAuth } from './auth/RequireAuth'
+import { BoardProvider } from './board/BoardProvider'
 import { BoardOnly } from './components/BoardOnly'
 import { EventsProvider } from './events/EventsProvider'
 import { ExpensesProvider } from './expenses/ExpensesProvider'
 import { BoardEventsPage } from './pages/board/BoardEventsPage'
 import { BoardExpensesPage } from './pages/board/BoardExpensesPage'
+import { BoardHandoverPage } from './pages/board/BoardHandoverPage'
 import { BoardSellersPage } from './pages/board/BoardSellersPage'
 import { EventFormPage } from './pages/board/EventFormPage'
 import { ExpenseFormPage } from './pages/board/ExpenseFormPage'
@@ -53,6 +55,7 @@ function AppRoutes() {
           <Route path="sellers" element={<BoardSellersPage />} />
           <Route path="expenses" element={<BoardExpensesPage />} />
           <Route path="expenses/new" element={<ExpenseFormPage />} />
+          <Route path="handover" element={<BoardHandoverPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -63,17 +66,19 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <EventsProvider>
-        <SellersProvider>
-          <TicketsProvider>
-            <ExpensesProvider>
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </ExpensesProvider>
-          </TicketsProvider>
-        </SellersProvider>
-      </EventsProvider>
+      <BoardProvider>
+        <EventsProvider>
+          <SellersProvider>
+            <TicketsProvider>
+              <ExpensesProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </ExpensesProvider>
+            </TicketsProvider>
+          </SellersProvider>
+        </EventsProvider>
+      </BoardProvider>
     </AuthProvider>
   )
 }

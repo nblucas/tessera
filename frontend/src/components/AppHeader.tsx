@@ -1,12 +1,13 @@
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../auth/context'
-import { isBoardMember } from '../data/board'
+import { useBoard } from '../board/context'
 import { useSellers } from '../sellers/context'
 import { TesseraMark } from './TesseraMark'
 
 export function AppHeader() {
   const { user, signOut } = useAuth()
   const { findSellerByEmail } = useSellers()
+  const { isBoardMember } = useBoard()
   const isSeller = findSellerByEmail(user?.email) !== undefined
   const isBoard = isBoardMember(user?.email)
 

@@ -23,7 +23,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 - [x] 11. Register sellers and their commission percentage
 - [x] 12. Submit an expense (amount, category, event, receipt upload)
 - [x] 13. Approve or reject expenses proposed by other directors
-- [ ] 14. Board handover: propose the new board and approve it
+- [x] 14. Board handover: propose the new board and approve it
 
 ## Public dashboard (no login)
 
