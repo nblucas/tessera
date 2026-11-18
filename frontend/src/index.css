@@ -269,6 +269,21 @@ button.secondary:hover {
   color: var(--accent);
 }
 
+.link-button,
+.link-button:hover {
+  padding: 0;
+  font-size: inherit;
+  font-weight: 400;
+  color: var(--muted);
+  text-decoration: underline;
+  background: none;
+  border: none;
+}
+
+.link-button:hover {
+  color: var(--error);
+}
+
 .topbar-nav a {
   font-size: 14px;
   color: var(--muted);

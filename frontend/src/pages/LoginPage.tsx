@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate, type Location } from 'react-router'
 import { useAuth } from '../auth/context'
 import { TesseraMark } from '../components/TesseraMark'
+import { resetDemoData } from '../lib/demo'
 import { LoginArt } from './LoginArt'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -62,6 +63,20 @@ export function LoginPage() {
           <p className="hint">Demo mode: any e-mail works, no password needed.</p>
           <p className="hint">
             <Link to="/transparency">See the association's open accounts →</Link>
+          </p>
+          <p className="hint">
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  'Delete all tickets, sales, expenses and changes made in this demo?',
+                )
+                if (confirmed) resetDemoData()
+              }}
+            >
+              Reset demo data
+            </button>
           </p>
         </div>
       </section>

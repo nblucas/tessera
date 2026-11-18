@@ -35,6 +35,10 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 
 - [x] 18. Scan a ticket's QR code and show "valid", "already used" or "invalid"
 
+## Demo
+
+- [x] 19. "Reset demo data" button that clears all saved data and restores the seed state
+
 ## Suggested order
 
 1. Main purchase flow: 1 → 2 → 3 → 4 → 5
