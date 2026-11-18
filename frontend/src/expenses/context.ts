@@ -9,6 +9,7 @@ export type NewExpense = Pick<
 export type ExpensesContextValue = {
   expenses: Expense[]
   proposeExpense: (expense: NewExpense) => Expense
+  voteOnExpense: (expenseId: string, email: string, vote: 'approve' | 'reject') => void
 }
 
 export const ExpensesContext = createContext<ExpensesContextValue | null>(null)

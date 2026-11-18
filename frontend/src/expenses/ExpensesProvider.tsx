@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { BOARD_MAJORITY } from '../data/board'
 import type { Expense } from '../data/expenses'
 import { ExpensesContext, type NewExpense } from './context'
 
@@ -45,8 +46,31 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     return expense
   }
 
+  function voteOnExpense(expenseId: string, email: string, vote: 'approve' | 'reject') {
+    update((current) =>
+      current.map((expense) => {
+        const alreadyVoted =
+          expense.approvals.includes(email) || expense.rejections.includes(email)
+        if (expense.id !== expenseId || expense.status !== 'pending' || alreadyVoted) {
+          return expense
+        }
+        const approvals =
+          vote === 'approve' ? [...expense.approvals, email] : expense.approvals
+        const rejections =
+          vote === 'reject' ? [...expense.rejections, email] : expense.rejections
+        const status =
+          approvals.length >= BOARD_MAJORITY
+            ? 'approved'
+            : rejections.length >= BOARD_MAJORITY
+              ? 'rejected'
+              : 'pending'
+        return { ...expense, approvals, rejections, status }
+      }),
+    )
+  }
+
   return (
-    <ExpensesContext.Provider value={{ expenses, proposeExpense }}>
+    <ExpensesContext.Provider value={{ expenses, proposeExpense, voteOnExpense }}>
       {children}
     </ExpensesContext.Provider>
   )

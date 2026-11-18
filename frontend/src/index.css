@@ -686,6 +686,39 @@ input[type='file'] {
   text-align: left;
 }
 
+.expense-row {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.expense-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.expense-details {
+  margin-top: 8px;
+}
+
+.receipt-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.expense-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .expense-pending {
   color: #b8692e;
   border-color: #ec8d50;
