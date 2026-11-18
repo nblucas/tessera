@@ -29,7 +29,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 
 - [x] 15. The association's income and expenses, per event
 - [x] 16. Balance and treasury summary
-- [ ] 17. Download an expense's receipt
+- [x] 17. Download an expense's receipt
 
 ## Gate
 

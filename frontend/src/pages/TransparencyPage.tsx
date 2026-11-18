@@ -5,6 +5,7 @@ import { useEvents } from '../events/context'
 import { useExpenses } from '../expenses/context'
 import { formatDate, formatPrice } from '../lib/format'
 import { buildLedger, summarize, type EventLedger } from '../lib/ledger'
+import { ReceiptCheck } from '../components/ReceiptCheck'
 import { TreasurySummary } from '../components/TreasurySummary'
 import { useTickets } from '../tickets/context'
 
@@ -54,6 +55,7 @@ function LedgerCard({ ledger }: { ledger: EventLedger }) {
                   {expense.category} · approved by{' '}
                   {expense.approvals.map(memberName).join(', ')}
                 </span>
+                <ReceiptCheck receipt={expense.receipt} />
               </td>
               <td className="amount negative">−{formatPrice(expense.amountCents)}</td>
             </tr>
