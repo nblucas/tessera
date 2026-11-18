@@ -4,7 +4,8 @@ import { ASSOCIATION_NAME } from '../data/events'
 import { useEvents } from '../events/context'
 import { useExpenses } from '../expenses/context'
 import { formatDate, formatPrice } from '../lib/format'
-import { buildLedger, type EventLedger } from '../lib/ledger'
+import { buildLedger, summarize, type EventLedger } from '../lib/ledger'
+import { TreasurySummary } from '../components/TreasurySummary'
 import { useTickets } from '../tickets/context'
 
 function LedgerCard({ ledger }: { ledger: EventLedger }) {
@@ -74,6 +75,7 @@ export function TransparencyPage() {
   const { tickets } = useTickets()
   const { expenses } = useExpenses()
   const ledger = buildLedger(events, tickets, expenses)
+  const summary = summarize([...ledger.events, ledger.general])
 
   return (
     <>
@@ -85,7 +87,10 @@ export function TransparencyPage() {
           check it, and no one can change it after it is recorded.
         </p>
 
-        <div className="ledger-list">
+        <TreasurySummary summary={summary} />
+
+        <h2 className="section-title">Per event</h2>
+        <div className="ledger-list per-event">
           {ledger.events.map((item) => (
             <LedgerCard key={item.event!.id} ledger={item} />
           ))}

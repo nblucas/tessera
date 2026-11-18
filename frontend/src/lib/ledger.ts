@@ -71,3 +71,41 @@ export function buildLedger(events: Event[], tickets: Ticket[], expenses: Expens
     general,
   }
 }
+
+export type TreasurySummary = {
+  ticketIncome: number
+  royaltyIncome: number
+  income: number
+  expenses: number
+  balance: number
+  byCategory: { category: string; amount: number }[]
+}
+
+export function summarize(ledgers: EventLedger[]): TreasurySummary {
+  const categories = new Map<string, number>()
+  let ticketIncome = 0
+  let royaltyIncome = 0
+  let expenses = 0
+
+  for (const ledger of ledgers) {
+    ticketIncome += ledger.ticketIncome
+    royaltyIncome += ledger.royaltyIncome
+    expenses += ledger.expenseTotal
+    for (const expense of ledger.expenses) {
+      const previous = categories.get(expense.category) ?? 0
+      categories.set(expense.category, previous + expense.amountCents)
+    }
+  }
+
+  const income = ticketIncome + royaltyIncome
+  return {
+    ticketIncome,
+    royaltyIncome,
+    income,
+    expenses,
+    balance: income - expenses,
+    byCategory: [...categories.entries()]
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount),
+  }
+}
