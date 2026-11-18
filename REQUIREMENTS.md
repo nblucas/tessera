@@ -27,7 +27,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 
 ## Public dashboard (no login)
 
-- [ ] 15. The association's income and expenses, per event
+- [x] 15. The association's income and expenses, per event
 - [ ] 16. Balance and treasury summary
 - [ ] 17. Download an expense's receipt
 

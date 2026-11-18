@@ -19,20 +19,33 @@ export function AppHeader() {
           Tessera
         </Link>
         <nav className="topbar-nav">
-          <NavLink to="/" end>
-            Events
-          </NavLink>
-          <NavLink to="/resale">Resale</NavLink>
-          <NavLink to="/tickets">My tickets</NavLink>
-          {isSeller && <NavLink to="/sales">My sales</NavLink>}
+          {user && (
+            <>
+              <NavLink to="/" end>
+                Events
+              </NavLink>
+              <NavLink to="/resale">Resale</NavLink>
+              <NavLink to="/tickets">My tickets</NavLink>
+              {isSeller && <NavLink to="/sales">My sales</NavLink>}
+            </>
+          )}
+          <NavLink to="/transparency">Open accounts</NavLink>
           {isBoard && <NavLink to="/board">Board</NavLink>}
         </nav>
       </div>
       <div className="topbar-user">
-        <span className="muted">{user?.email}</span>
-        <button type="button" className="secondary" onClick={signOut}>
-          Sign out
-        </button>
+        {user ? (
+          <>
+            <span className="muted">{user.email}</span>
+            <button type="button" className="secondary" onClick={signOut}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <Link to="/login" className="button-link secondary-link topbar-signin">
+            Sign in
+          </Link>
+        )}
       </div>
     </header>
   )

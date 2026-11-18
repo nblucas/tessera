@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate, type Location } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, type Location } from 'react-router'
 import { useAuth } from '../auth/context'
 import { TesseraMark } from '../components/TesseraMark'
 import { LoginArt } from './LoginArt'
@@ -60,6 +60,9 @@ export function LoginPage() {
           </form>
 
           <p className="hint">Demo mode: any e-mail works, no password needed.</p>
+          <p className="hint">
+            <Link to="/transparency">See the association's open accounts →</Link>
+          </p>
         </div>
       </section>
       <LoginArt />

@@ -19,6 +19,7 @@ import { MySalesPage } from './pages/MySalesPage'
 import { MyTicketsPage } from './pages/MyTicketsPage'
 import { ResaleCheckoutPage } from './pages/ResaleCheckoutPage'
 import { ResalePage } from './pages/ResalePage'
+import { TransparencyPage } from './pages/TransparencyPage'
 import { SellersProvider } from './sellers/SellersProvider'
 import { TicketsProvider } from './tickets/TicketsProvider'
 
@@ -26,6 +27,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/transparency" element={<TransparencyPage />} />
       <Route
         element={
           <RequireAuth>
