@@ -33,7 +33,7 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 
 ## Gate
 
-- [ ] 18. Scan a ticket's QR code and show "valid", "already used" or "invalid"
+- [x] 18. Scan a ticket's QR code and show "valid", "already used" or "invalid"
 
 ## Suggested order
 

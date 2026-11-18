@@ -14,6 +14,7 @@ import { ExpenseFormPage } from './pages/board/ExpenseFormPage'
 import { CheckoutPage } from './pages/CheckoutPage'
 import { EventPage } from './pages/EventPage'
 import { EventsPage } from './pages/EventsPage'
+import { GatePage } from './pages/GatePage'
 import { LoginPage } from './pages/LoginPage'
 import { MySalesPage } from './pages/MySalesPage'
 import { MyTicketsPage } from './pages/MyTicketsPage'
@@ -42,6 +43,14 @@ function AppRoutes() {
         <Route path="/resale" element={<ResalePage />} />
         <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
         <Route path="/sales" element={<MySalesPage />} />
+        <Route
+          path="/gate"
+          element={
+            <BoardOnly>
+              <GatePage />
+            </BoardOnly>
+          }
+        />
         <Route
           path="/board"
           element={

@@ -934,6 +934,93 @@ input[type='file'] {
   font-weight: 500;
 }
 
+/* Gate */
+
+.gate {
+  max-width: 560px;
+}
+
+.gate-event {
+  margin-top: 24px;
+}
+
+.gate-count {
+  margin-top: 6px;
+  text-align: left;
+}
+
+.gate-scan input {
+  font-family: ui-monospace, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.gate-demo {
+  margin-top: 16px;
+}
+
+.gate-result {
+  margin-top: 8px;
+  padding: 24px;
+  text-align: center;
+  border-radius: 12px;
+}
+
+.gate-result p {
+  color: inherit;
+}
+
+.gate-outcome {
+  margin-bottom: 4px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.gate-valid {
+  color: #fff;
+  background: #2f8a7d;
+}
+
+.gate-used {
+  color: #1f1300;
+  background: #f1c964;
+}
+
+.gate-invalid {
+  color: #fff;
+  background: #b91c1c;
+}
+
+.gate-history {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gate-history li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.gate-badge-valid {
+  color: #2f8a7d;
+  border-color: #51b8aa;
+}
+
+.gate-badge-used {
+  color: #b8692e;
+  border-color: #ec8d50;
+}
+
+.gate-badge-invalid {
+  color: var(--error);
+  border-color: var(--error);
+}
+
 .term-card {
   padding: 16px;
   background: var(--surface);

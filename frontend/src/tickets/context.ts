@@ -14,6 +14,7 @@ export type Ticket = {
   resoldFromId?: string
   sellerId?: string
   commissionCents?: number
+  usedAt?: string
 }
 
 export type NewTicket = Pick<
@@ -27,6 +28,11 @@ export type TicketsContextValue = {
   listTicket: (ticketId: string, priceCents: number) => void
   unlistTicket: (ticketId: string) => void
   buyResale: (ticketId: string, buyerEmail: string) => Ticket | null
+  checkIn: (ticketId: string) => void
+}
+
+export function ticketCode(ticket: Ticket): string {
+  return ticket.id.slice(0, 8).toUpperCase()
 }
 
 export const TicketsContext = createContext<TicketsContextValue | null>(null)

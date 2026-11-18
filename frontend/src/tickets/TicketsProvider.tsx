@@ -85,9 +85,17 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     return ticket
   }
 
+  function checkIn(ticketId: string) {
+    updateTicket(ticketId, (ticket) =>
+      ticket.status === 'valid'
+        ? { ...ticket, status: 'used', usedAt: new Date().toISOString() }
+        : ticket,
+    )
+  }
+
   return (
     <TicketsContext.Provider
-      value={{ tickets, issueTicket, listTicket, unlistTicket, buyResale }}
+      value={{ tickets, issueTicket, listTicket, unlistTicket, buyResale, checkIn }}
     >
       {children}
     </TicketsContext.Provider>

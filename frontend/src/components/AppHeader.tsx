@@ -30,7 +30,12 @@ export function AppHeader() {
             </>
           )}
           <NavLink to="/transparency">Open accounts</NavLink>
-          {isBoard && <NavLink to="/board">Board</NavLink>}
+          {isBoard && (
+            <>
+              <NavLink to="/board">Board</NavLink>
+              <NavLink to="/gate">Gate</NavLink>
+            </>
+          )}
         </nav>
       </div>
       <div className="topbar-user">
