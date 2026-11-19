@@ -5,6 +5,7 @@ import { AppHeader } from '../components/AppHeader'
 import { FakeQrCode } from '../components/FakeQrCode'
 import { ResaleForm } from '../components/ResaleForm'
 import { useEvents } from '../events/context'
+import { FEATURES } from '../features'
 import { formatDate, formatPrice } from '../lib/format'
 import { maxResalePrice } from '../lib/resale'
 import { useTickets, type Ticket, type TicketStatus } from '../tickets/context'
@@ -62,20 +63,28 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
             ` · ${formatPrice(ticket.listingPriceCents)}`}
         </span>
 
-        {isValid && !reselling && (
-          <button type="button" className="secondary ticket-action" onClick={() => setReselling(true)}>
+        {FEATURES.resale && isValid && !reselling && (
+          <button
+            type="button"
+            className="secondary ticket-action"
+            onClick={() => setReselling(true)}
+          >
             Resell
           </button>
         )}
-        {isListed && (
+        {FEATURES.resale && isListed && (
           <>
             <p className="hint">This ticket can't be used at the gate while it is listed.</p>
-            <button type="button" className="secondary ticket-action" onClick={() => unlistTicket(ticket.id)}>
+            <button
+              type="button"
+              className="secondary ticket-action"
+              onClick={() => unlistTicket(ticket.id)}
+            >
               Cancel listing
             </button>
           </>
         )}
-        {isValid && reselling && (
+        {FEATURES.resale && isValid && reselling && (
           <ResaleForm
             faceValueCents={batch.priceCents}
             capPercent={event.resaleCapPercent}
@@ -90,8 +99,11 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
       </div>
       {isValid && (
         <div className="ticket-qr">
-          <FakeQrCode value={`${ticket.id}:${timeSlot}`} size={150} />
-          <p className="hint">Refreshes in {refreshIn}s</p>
+          <FakeQrCode
+            value={FEATURES.gate ? `${ticket.id}:${timeSlot}` : ticket.id}
+            size={150}
+          />
+          {FEATURES.gate && <p className="hint">Refreshes in {refreshIn}s</p>}
         </div>
       )}
     </article>
@@ -112,7 +124,9 @@ export function MyTicketsPage() {
       <AppHeader />
       <main className="page">
         <h1>My tickets</h1>
-        <p className="muted">Show the QR code at the gate. It changes every 30 seconds.</p>
+        <p className="muted">
+          Show the QR code at the entrance.{FEATURES.gate && ' It changes every 30 seconds.'}
+        </p>
 
         {mine.length === 0 ? (
           <div className="empty-state">

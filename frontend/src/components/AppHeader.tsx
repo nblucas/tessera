@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../auth/context'
 import { useBoard } from '../board/context'
+import { FEATURES } from '../features'
 import { useSellers } from '../sellers/context'
 import { TesseraMark } from './TesseraMark'
 
@@ -24,16 +25,16 @@ export function AppHeader() {
               <NavLink to="/" end>
                 Events
               </NavLink>
-              <NavLink to="/resale">Resale</NavLink>
+              {FEATURES.resale && <NavLink to="/resale">Resale</NavLink>}
               <NavLink to="/tickets">My tickets</NavLink>
-              {isSeller && <NavLink to="/sales">My sales</NavLink>}
+              {FEATURES.sellers && isSeller && <NavLink to="/sales">My sales</NavLink>}
             </>
           )}
           <NavLink to="/transparency">Open accounts</NavLink>
           {isBoard && (
             <>
               <NavLink to="/board">Board</NavLink>
-              <NavLink to="/gate">Gate</NavLink>
+              {FEATURES.gate && <NavLink to="/gate">Gate</NavLink>}
             </>
           )}
         </nav>

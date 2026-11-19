@@ -3,6 +3,7 @@ import { AppHeader } from '../components/AppHeader'
 import { ASSOCIATION_NAME } from '../data/events'
 import { useEvents } from '../events/context'
 import { useExpenses } from '../expenses/context'
+import { FEATURES } from '../features'
 import { formatDate, formatPrice } from '../lib/format'
 import { buildLedger, summarize, type EventLedger } from '../lib/ledger'
 import { ReceiptCheck } from '../components/ReceiptCheck'
@@ -41,10 +42,12 @@ function LedgerCard({ ledger }: { ledger: EventLedger }) {
                 <td>Ticket sales ({ledger.ticketsSold})</td>
                 <td className="amount positive">+{formatPrice(ledger.ticketIncome)}</td>
               </tr>
-              <tr>
-                <td>Resale royalties ({ledger.resaleCount})</td>
-                <td className="amount positive">+{formatPrice(ledger.royaltyIncome)}</td>
-              </tr>
+              {FEATURES.resale && (
+                <tr>
+                  <td>Resale royalties ({ledger.resaleCount})</td>
+                  <td className="amount positive">+{formatPrice(ledger.royaltyIncome)}</td>
+                </tr>
+              )}
             </>
           )}
           {ledger.expenses.map((expense) => (

@@ -5,6 +5,7 @@ import { BoardProvider } from './board/BoardProvider'
 import { BoardOnly } from './components/BoardOnly'
 import { EventsProvider } from './events/EventsProvider'
 import { ExpensesProvider } from './expenses/ExpensesProvider'
+import { FEATURES } from './features'
 import { BoardEventsPage } from './pages/board/BoardEventsPage'
 import { BoardExpensesPage } from './pages/board/BoardExpensesPage'
 import { BoardHandoverPage } from './pages/board/BoardHandoverPage'
@@ -40,17 +41,23 @@ function AppRoutes() {
         <Route path="/events/:eventId" element={<EventPage />} />
         <Route path="/events/:eventId/checkout/:batchId" element={<CheckoutPage />} />
         <Route path="/tickets" element={<MyTicketsPage />} />
-        <Route path="/resale" element={<ResalePage />} />
-        <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
-        <Route path="/sales" element={<MySalesPage />} />
-        <Route
-          path="/gate"
-          element={
-            <BoardOnly>
-              <GatePage />
-            </BoardOnly>
-          }
-        />
+        {FEATURES.resale && (
+          <>
+            <Route path="/resale" element={<ResalePage />} />
+            <Route path="/resale/:ticketId/checkout" element={<ResaleCheckoutPage />} />
+          </>
+        )}
+        {FEATURES.sellers && <Route path="/sales" element={<MySalesPage />} />}
+        {FEATURES.gate && (
+          <Route
+            path="/gate"
+            element={
+              <BoardOnly>
+                <GatePage />
+              </BoardOnly>
+            }
+          />
+        )}
         <Route
           path="/board"
           element={
@@ -63,7 +70,7 @@ function AppRoutes() {
           <Route path="events" element={<BoardEventsPage />} />
           <Route path="events/new" element={<EventFormPage />} />
           <Route path="events/:eventId" element={<EventFormPage />} />
-          <Route path="sellers" element={<BoardSellersPage />} />
+          {FEATURES.sellers && <Route path="sellers" element={<BoardSellersPage />} />}
           <Route path="expenses" element={<BoardExpensesPage />} />
           <Route path="expenses/new" element={<ExpenseFormPage />} />
           <Route path="handover" element={<BoardHandoverPage />} />

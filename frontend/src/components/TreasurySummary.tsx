@@ -1,3 +1,4 @@
+import { FEATURES } from '../features'
 import { formatPrice } from '../lib/format'
 import type { TreasurySummary as Summary } from '../lib/ledger'
 
@@ -19,8 +20,9 @@ export function TreasurySummary({ summary }: { summary: Summary }) {
           <p className="stat-label">Total income</p>
           <p className="stat-value">{formatPrice(summary.income)}</p>
           <p className="stat-note">
-            Tickets {formatPrice(summary.ticketIncome)} · Resale royalties{' '}
-            {formatPrice(summary.royaltyIncome)}
+            {FEATURES.resale
+              ? `Tickets ${formatPrice(summary.ticketIncome)} · Resale royalties ${formatPrice(summary.royaltyIncome)}`
+              : 'From ticket sales'}
           </p>
         </div>
         <div className="stat">

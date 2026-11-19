@@ -6,6 +6,7 @@ import { SellerLinkBox } from '../components/SellerLinkBox'
 import { useTickets } from '../tickets/context'
 import type { Batch } from '../data/events'
 import { useEvents } from '../events/context'
+import { FEATURES } from '../features'
 import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
 
@@ -36,13 +37,13 @@ export function EventPage() {
   const { tickets } = useTickets()
   const [searchParams] = useSearchParams()
   const { findSeller, findSellerByEmail } = useSellers()
-  const referrer = findSeller(searchParams.get('seller'))
-  const currentSeller = findSellerByEmail(user?.email)
+  const referrer = FEATURES.sellers ? findSeller(searchParams.get('seller')) : undefined
+  const currentSeller = FEATURES.sellers ? findSellerByEmail(user?.email) : undefined
   const { findEvent } = useEvents()
   const event = findEvent(eventId)
-  const resale = tickets.filter(
-    (ticket) => ticket.eventId === eventId && ticket.status === 'listed',
-  )
+  const resale = FEATURES.resale
+    ? tickets.filter((ticket) => ticket.eventId === eventId && ticket.status === 'listed')
+    : []
 
   if (!event) {
     return (

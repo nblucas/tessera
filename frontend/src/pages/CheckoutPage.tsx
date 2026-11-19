@@ -5,6 +5,7 @@ import { AppHeader } from '../components/AppHeader'
 import { PaymentSuccess } from '../components/PaymentSuccess'
 import { PixPayment } from '../components/PixPayment'
 import { useEvents } from '../events/context'
+import { FEATURES } from '../features'
 import { commissionFor } from '../data/sellers'
 import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
@@ -14,7 +15,7 @@ export function CheckoutPage() {
   const { eventId, batchId } = useParams()
   const [searchParams] = useSearchParams()
   const { findSeller } = useSellers()
-  const seller = findSeller(searchParams.get('seller'))
+  const seller = FEATURES.sellers ? findSeller(searchParams.get('seller')) : undefined
   const { user } = useAuth()
   const { issueTicket } = useTickets()
   const [ticket, setTicket] = useState<Ticket | null>(null)

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { AppHeader } from '../../components/AppHeader'
 import type { Batch, Event } from '../../data/events'
 import { useEvents } from '../../events/context'
+import { FEATURES } from '../../features'
 import { centsToInput, parseReais } from '../../lib/format'
 
 const COLORS = ['#7c54c8', '#ec8d50', '#51b8aa', '#f1c964', '#e377a6', '#343058']
@@ -174,15 +175,17 @@ export function EventFormPage() {
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
-            <div className="field">
-              <label htmlFor="resale-cap">Resale cap (%)</label>
-              <input
-                id="resale-cap"
-                inputMode="numeric"
-                value={resaleCap}
-                onChange={(e) => setResaleCap(e.target.value)}
-              />
-            </div>
+            {FEATURES.resale && (
+              <div className="field">
+                <label htmlFor="resale-cap">Resale cap (%)</label>
+                <input
+                  id="resale-cap"
+                  inputMode="numeric"
+                  value={resaleCap}
+                  onChange={(e) => setResaleCap(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="field">
