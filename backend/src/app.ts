@@ -1,4 +1,5 @@
 import cookie from '@fastify/cookie'
+import multipart from '@fastify/multipart'
 import Fastify from 'fastify'
 import {
   hasZodFastifySchemaValidationErrors,
@@ -11,6 +12,7 @@ import { registerAuth } from './http/auth'
 import { HttpError } from './http/errors'
 import { authRoutes } from './http/routes/auth'
 import { eventRoutes } from './http/routes/events'
+import { expenseRoutes } from './http/routes/expenses'
 import { meRoutes } from './http/routes/me'
 import { orderRoutes } from './http/routes/orders'
 import { LedgerRejection } from './ledger/types'
@@ -51,11 +53,13 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
   })
 
   app.register(cookie)
+  app.register(multipart)
   registerAuth(app, deps)
   authRoutes(app, deps)
   meRoutes(app, deps)
   eventRoutes(app, deps)
   orderRoutes(app, deps)
+  expenseRoutes(app, deps)
 
   return app
 }

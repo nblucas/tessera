@@ -1,4 +1,5 @@
 import type { LocalAccount } from 'viem'
+import type { FileStore } from './adapters/fileStore'
 import type { Mailer } from './adapters/mailer'
 import type { PixProvider } from './adapters/pix'
 import type { Config } from './config'
@@ -19,6 +20,7 @@ export type Deps = {
   relayer: Relayer
   mailer: Mailer
   pix: PixProvider
+  files: FileStore
   jobs: Jobs
   oracle: LocalAccount
   now: () => Date

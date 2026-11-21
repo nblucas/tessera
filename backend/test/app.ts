@@ -6,6 +6,10 @@ import {
 } from '@tessera/shared'
 import type { LightMyRequestResponse } from 'fastify'
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { LocalFileStore } from '../src/adapters/fileStore'
 import type { Mailer } from '../src/adapters/mailer'
 import { FakePixProvider } from '../src/adapters/pix'
 import { buildApp } from '../src/app'
@@ -52,7 +56,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     ledgerDomain: TEST_DOMAIN,
     oraclePrivateKey: generatePrivateKey(),
     pixWebhookSecret: 'test-webhook-secret',
-    filesDir: '',
+    filesDir: await mkdtemp(join(tmpdir(), 'tessera-files-')),
     cookieSecure: false,
     ...overrides,
   }
@@ -70,6 +74,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     relayer: new Relayer(ledger, indexer),
     mailer,
     pix,
+    files: new LocalFileStore(config.filesDir),
     jobs,
     oracle,
     now,
