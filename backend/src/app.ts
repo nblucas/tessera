@@ -10,6 +10,7 @@ import type { Deps } from './deps'
 import { registerAuth } from './http/auth'
 import { HttpError } from './http/errors'
 import { authRoutes } from './http/routes/auth'
+import { eventRoutes } from './http/routes/events'
 import { meRoutes } from './http/routes/me'
 import { LedgerRejection } from './ledger/types'
 
@@ -40,6 +41,7 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
   registerAuth(app, deps)
   authRoutes(app, deps)
   meRoutes(app, deps)
+  eventRoutes(app, deps)
 
   return app
 }
