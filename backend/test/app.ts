@@ -7,11 +7,14 @@ import {
 import type { LightMyRequestResponse } from 'fastify'
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
 import type { Mailer } from '../src/adapters/mailer'
+import { FakePixProvider } from '../src/adapters/pix'
 import { buildApp } from '../src/app'
 import type { Config } from '../src/config'
 import type { Deps } from '../src/deps'
 import { Indexer } from '../src/indexer/indexer'
+import { InlineJobs } from '../src/jobs'
 import { FakeLedger } from '../src/ledger/fakeLedger'
+import { registerOracle } from '../src/oracle'
 import { Relayer } from '../src/relayer'
 import { seed } from '../src/seed/seed'
 import { createTestDb } from './db'
@@ -54,6 +57,8 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     ...overrides,
   }
   const mailer = new MemoryMailer()
+  const pix = new FakePixProvider(config.pixWebhookSecret)
+  const jobs = new InlineJobs()
   const ledger = new FakeLedger(testDb.db, { domain: config.ledgerDomain, oracle: oracle.address, now })
   const indexer = new Indexer(testDb.db, ledger)
   const deps: Deps = {
@@ -64,10 +69,13 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     indexer,
     relayer: new Relayer(ledger, indexer),
     mailer,
+    pix,
+    jobs,
     oracle,
     now,
   }
   await seed(deps)
+  await registerOracle(deps)
   const app = buildApp(deps)
   await app.ready()
 
@@ -126,10 +134,19 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     return user
   }
 
+  // Delivers the webhook the payment provider would send once the order is paid.
+  async function pay(order: { txid: string; priceCents: number }) {
+    const webhook = pix.simulatePayment(order.txid, order.priceCents)
+    return app.inject({ method: 'POST', url: '/webhooks/pix', headers: webhook.headers, payload: webhook.payload })
+  }
+
   return {
     app,
     deps,
     mailer,
+    pix,
+    jobs,
+    pay,
     clock,
     ledger,
     signIn,

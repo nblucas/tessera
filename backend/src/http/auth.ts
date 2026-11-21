@@ -15,6 +15,7 @@ export type Account = typeof accounts.$inferSelect
 declare module 'fastify' {
   interface FastifyRequest {
     account: Account | null
+    rawBody?: string
   }
 }
 

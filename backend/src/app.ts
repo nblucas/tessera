@@ -12,6 +12,7 @@ import { HttpError } from './http/errors'
 import { authRoutes } from './http/routes/auth'
 import { eventRoutes } from './http/routes/events'
 import { meRoutes } from './http/routes/me'
+import { orderRoutes } from './http/routes/orders'
 import { LedgerRejection } from './ledger/types'
 
 export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
@@ -37,11 +38,24 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
     return reply.status(500).send({ error: 'internal', message: 'Something went wrong.' })
   })
 
+  // Keeps the raw body for webhook signature checks.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, rawBody, done) => {
+    const text = rawBody as string
+    request.rawBody = text
+    try {
+      done(null, text.length > 0 ? JSON.parse(text) : {})
+    } catch (error) {
+      ;(error as { statusCode?: number }).statusCode = 400
+      done(error as Error, undefined)
+    }
+  })
+
   app.register(cookie)
   registerAuth(app, deps)
   authRoutes(app, deps)
   meRoutes(app, deps)
   eventRoutes(app, deps)
+  orderRoutes(app, deps)
 
   return app
 }
