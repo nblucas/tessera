@@ -1,7 +1,7 @@
-import { privateKeyToAccount } from 'viem/accounts'
 import { LocalFileStore } from './adapters/fileStore'
 import { ConsoleMailer } from './adapters/mailer'
 import { FakePixProvider } from './adapters/pix'
+import { assertSeparateKeys, localSigner } from './adapters/signer'
 import type { Config } from './config'
 import { createDb } from './db/client'
 import type { Deps } from './deps'
@@ -19,8 +19,14 @@ export function createDeps(config: Config, jobs: Jobs) {
     )
   }
   const { pool, db } = createDb(config.databaseUrl)
-  const oracle = privateKeyToAccount(config.oraclePrivateKey)
-  const ledger = new FakeLedger(db, { domain: config.ledgerDomain, oracle: oracle.address })
+  const oracle = localSigner(config.oraclePrivateKey)
+  const relayerKey = localSigner(config.relayerPrivateKey)
+  assertSeparateKeys(oracle, relayerKey)
+  const ledger = new FakeLedger(db, {
+    domain: config.ledgerDomain,
+    oracle: oracle.address,
+    relayer: relayerKey.address,
+  })
   const indexer = new Indexer(db, ledger)
   const deps: Deps = {
     config,
@@ -28,7 +34,7 @@ export function createDeps(config: Config, jobs: Jobs) {
     ledger,
     genesis: ledger,
     indexer,
-    relayer: new Relayer(ledger, indexer),
+    relayer: new Relayer(relayerKey, ledger, indexer),
     mailer: new ConsoleMailer(),
     pix: new FakePixProvider(config.pixWebhookSecret),
     files: new LocalFileStore(config.filesDir),

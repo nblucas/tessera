@@ -6,6 +6,8 @@ export type LedgerEvent = {
   association: string
   record: LedgerRecord
   signature: Hex | null
+  // The relayer that submitted the entry; null for genesis records.
+  submittedBy: Address | null
   prevHash: string
   hash: string
   recordedAt: string

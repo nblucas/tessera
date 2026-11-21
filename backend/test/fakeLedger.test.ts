@@ -11,6 +11,7 @@ const director = privateKeyToAccount(generatePrivateKey())
 const otherDirector = privateKeyToAccount(generatePrivateKey())
 const student = privateKeyToAccount(generatePrivateKey())
 const oracle = privateKeyToAccount(generatePrivateKey())
+const relayer = privateKeyToAccount(generatePrivateKey())
 
 const testDb = await createTestDb()
 afterAll(() => testDb.drop())
@@ -19,7 +20,11 @@ let ledger: FakeLedger
 
 beforeEach(async () => {
   await testDb.db.execute(sql`TRUNCATE ledger.entries RESTART IDENTITY`)
-  ledger = new FakeLedger(testDb.db, { domain: TEST_DOMAIN, oracle: oracle.address })
+  ledger = new FakeLedger(testDb.db, {
+    domain: TEST_DOMAIN,
+    oracle: oracle.address,
+    relayer: relayer.address,
+  })
   await ledger.writeGenesis(ASSOCIATION, [
     { kind: 'BoardSet', actor: null, members: [director.address, otherDirector.address] },
     {
@@ -73,6 +78,13 @@ describe('fake ledger', () => {
       amountCents: 120000,
     })
     expect(events[2].association).toBe(ASSOCIATION)
+  })
+
+  it('records which relayer submitted each signed entry', async () => {
+    await ledger.submit(await proposeExpense(0))
+
+    const { events } = await ledger.readEvents(null, 100)
+    expect(events.map((event) => event.submittedBy)).toEqual([null, null, relayer.address])
   })
 
   it('rejects an action signed by someone other than its actor', async () => {

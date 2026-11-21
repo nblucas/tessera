@@ -8,6 +8,7 @@ export type Config = {
   association: { id: string; name: string }
   ledgerDomain: LedgerDomain
   oraclePrivateKey: Hex
+  relayerPrivateKey: Hex
   pixWebhookSecret: string
   filesDir: string
   cookieSecure: boolean
@@ -15,6 +16,7 @@ export type Config = {
 
 // Demo only: fixed secrets so the demo runs without setup. Never used outside DEMO_MODE.
 const DEMO_ORACLE_KEY: Hex = '0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba'
+const DEMO_RELAYER_KEY: Hex = '0x3c1f6d1b0f2a4e8d9c7b5a39281706f5e4d3c2b1a0f9e8d7c6b5a4938271605f'
 const DEMO_WEBHOOK_SECRET = 'tessera-demo-webhook-secret'
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -39,6 +41,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         '0x0000000000000000000000000000000000000001') as Hex,
     },
     oraclePrivateKey: required('ORACLE_PRIVATE_KEY', DEMO_ORACLE_KEY) as Hex,
+    relayerPrivateKey: required('RELAYER_PRIVATE_KEY', DEMO_RELAYER_KEY) as Hex,
     pixWebhookSecret: required('PIX_WEBHOOK_SECRET', DEMO_WEBHOOK_SECRET),
     filesDir: env.FILES_DIR ?? './data/receipts',
     cookieSecure: env.COOKIE_SECURE === 'true',

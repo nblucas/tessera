@@ -1,7 +1,7 @@
-import type { LocalAccount } from 'viem'
 import type { FileStore } from './adapters/fileStore'
 import type { Mailer } from './adapters/mailer'
 import type { PixProvider } from './adapters/pix'
+import type { Signer } from './adapters/signer'
 import type { Config } from './config'
 import type { Db } from './db/client'
 import type { Indexer } from './indexer/indexer'
@@ -22,6 +22,6 @@ export type Deps = {
   pix: PixProvider
   files: FileStore
   jobs: Jobs
-  oracle: LocalAccount
+  oracle: Signer
   now: () => Date
 }

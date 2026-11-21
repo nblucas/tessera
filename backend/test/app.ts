@@ -48,6 +48,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
   const clock = { now: new Date() }
   const now = () => clock.now
   const oracle = privateKeyToAccount(generatePrivateKey())
+  const relayerKey = privateKeyToAccount(generatePrivateKey())
   const config: Config = {
     port: 0,
     databaseUrl: testDb.url,
@@ -55,6 +56,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     association: { id: ASSOCIATION, name: 'Atlética Integrada' },
     ledgerDomain: TEST_DOMAIN,
     oraclePrivateKey: generatePrivateKey(),
+    relayerPrivateKey: generatePrivateKey(),
     pixWebhookSecret: 'test-webhook-secret',
     filesDir: await mkdtemp(join(tmpdir(), 'tessera-files-')),
     cookieSecure: false,
@@ -63,7 +65,12 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
   const mailer = new MemoryMailer()
   const pix = new FakePixProvider(config.pixWebhookSecret)
   const jobs = new InlineJobs()
-  const ledger = new FakeLedger(testDb.db, { domain: config.ledgerDomain, oracle: oracle.address, now })
+  const ledger = new FakeLedger(testDb.db, {
+    domain: config.ledgerDomain,
+    oracle: oracle.address,
+    relayer: relayerKey.address,
+    now,
+  })
   const indexer = new Indexer(testDb.db, ledger)
   const deps: Deps = {
     config,
@@ -71,7 +78,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     ledger,
     genesis: ledger,
     indexer,
-    relayer: new Relayer(ledger, indexer),
+    relayer: new Relayer(relayerKey, ledger, indexer),
     mailer,
     pix,
     files: new LocalFileStore(config.filesDir),

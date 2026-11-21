@@ -13,6 +13,7 @@ export class MemoryEventSource implements Pick<Ledger, 'readEvents'> {
         association,
         record,
         signature: null,
+        submittedBy: null,
         prevHash: '',
         hash: `hash-${seq}`,
         recordedAt: new Date(Date.UTC(2026, 10, 1, 0, seq)).toISOString(),

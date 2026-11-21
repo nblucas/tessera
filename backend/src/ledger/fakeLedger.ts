@@ -28,6 +28,8 @@ type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 export type FakeLedgerOptions = {
   domain: LedgerDomain
   oracle: Address
+  // Recorded on every signed entry, like the transaction sender on a real chain.
+  relayer: Address
   now?: () => Date
 }
 
@@ -67,7 +69,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
       const error = checkRecord(state, record, { oracle: this.options.oracle })
       if (error) throw new LedgerRejection('rule', error)
 
-      const seq = await this.append(tx, association, record, nonce, action.signature)
+      const seq = await this.append(tx, association, record, nonce, action.signature, this.options.relayer)
       return { entryId: String(seq) }
     })
   }
@@ -81,7 +83,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
         const error = checkRecord(state, record, { oracle: this.options.oracle })
         if (error) throw new LedgerRejection('rule', error)
         state = applyRecord(state, record)
-        await this.append(tx, association, record, null, null)
+        await this.append(tx, association, record, null, null, null)
       }
     })
   }
@@ -104,6 +106,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
         association: row.association,
         record: row.record,
         signature: row.signature as Hex | null,
+        submittedBy: row.submittedBy as Address | null,
         prevHash: row.prevHash,
         hash: row.hash,
         recordedAt: row.recordedAt.toISOString(),
@@ -146,6 +149,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
     record: LedgerRecord,
     nonce: number | null,
     signature: Hex | null,
+    submittedBy: Address | null,
   ): Promise<number> {
     const [last] = await tx
       .select({ hash: entries.hash })
@@ -153,7 +157,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
       .orderBy(desc(entries.seq))
       .limit(1)
     const prevHash = last?.hash ?? GENESIS_PREV_HASH
-    const hash = entryHash(prevHash, { association, record, nonce, signature })
+    const hash = entryHash(prevHash, { association, record, nonce, signature, submittedBy })
 
     const [row] = await tx
       .insert(entries)
@@ -164,6 +168,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
         nonce,
         record,
         signature,
+        submittedBy,
         prevHash,
         hash,
       })
