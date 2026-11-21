@@ -3,6 +3,7 @@ import { FakeQrCode } from './FakeQrCode'
 
 const CONFIRMATION_DELAY_MS = 2000
 
+// Builds a placeholder Pix code. Used only where no backend charge exists yet (resale roadmap).
 function pixCode(reference: string, amountCents: number): string {
   const amount = (amountCents / 100).toFixed(2)
   return `00020126580014br.gov.bcb.pix0136tessera-${reference}5204000053039865406${amount}5802BR5907TESSERA6009SAO PAULO6304A1B2`
@@ -11,17 +12,29 @@ function pixCode(reference: string, amountCents: number): string {
 type PixPaymentProps = {
   amountCents: number
   reference: string
-  onPaid: () => void
+  // The charge's "copy and paste" code from the backend.
+  code?: string
+  // Demo mode: show the "Simulate payment" button.
+  canSimulate?: boolean
+  onPaid: () => void | Promise<void>
 }
 
-export function PixPayment({ amountCents, reference, onPaid }: PixPaymentProps) {
+export function PixPayment({
+  amountCents,
+  reference,
+  code: chargeCode,
+  canSimulate = true,
+  onPaid,
+}: PixPaymentProps) {
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
-  const code = pixCode(reference, amountCents)
+  const code = chargeCode ?? pixCode(reference, amountCents)
 
   useEffect(() => {
     if (!confirming) return
-    const timer = setTimeout(onPaid, CONFIRMATION_DELAY_MS)
+    const timer = setTimeout(() => {
+      Promise.resolve(onPaid()).finally(() => setConfirming(false))
+    }, CONFIRMATION_DELAY_MS)
     return () => clearTimeout(timer)
   }, [confirming, onPaid])
 
@@ -48,15 +61,21 @@ export function PixPayment({ amountCents, reference, onPaid }: PixPaymentProps) 
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
-      <button
-        type="button"
-        className="checkout-confirm"
-        onClick={() => setConfirming(true)}
-        disabled={confirming}
-      >
-        {confirming ? 'Confirming payment…' : 'Simulate payment'}
-      </button>
-      <p className="hint">Demo mode: no real payment is made.</p>
+      {canSimulate ? (
+        <>
+          <button
+            type="button"
+            className="checkout-confirm"
+            onClick={() => setConfirming(true)}
+            disabled={confirming}
+          >
+            {confirming ? 'Confirming payment…' : 'Simulate payment'}
+          </button>
+          <p className="hint">Demo mode: no real payment is made.</p>
+        </>
+      ) : (
+        <p className="hint">Waiting for your payment…</p>
+      )}
     </section>
   )
 }

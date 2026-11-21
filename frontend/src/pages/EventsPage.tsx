@@ -1,11 +1,12 @@
 import { Link } from 'react-router'
 import { AppHeader } from '../components/AppHeader'
-import { ASSOCIATION_NAME, type Event } from '../data/events'
+import { useAuth } from '../auth/context'
+import type { Event } from '../data/events'
 import { useEvents } from '../events/context'
 import { formatDate, formatPrice } from '../lib/format'
 
 function availableBatches(event: Event) {
-  return event.batches.filter((batch) => batch.sold < batch.quantity)
+  return event.batches.filter((batch) => batch.available > 0)
 }
 
 function EventCard({ event }: { event: Event }) {
@@ -33,7 +34,8 @@ function EventCard({ event }: { event: Event }) {
 }
 
 export function EventsPage() {
-  const { events: all } = useEvents()
+  const { config } = useAuth()
+  const { events: all, loading } = useEvents()
   const events = [...all].sort((a, b) => a.date.localeCompare(b.date))
 
   return (
@@ -41,7 +43,8 @@ export function EventsPage() {
       <AppHeader />
       <main className="page">
         <h1>Events</h1>
-        <p className="muted">Upcoming events from {ASSOCIATION_NAME}.</p>
+        <p className="muted">Upcoming events from {config?.association.name}.</p>
+        {loading && <p className="muted">Loading events…</p>}
         <div className="event-grid">
           {events.map((event) => (
             <EventCard key={event.id} event={event} />

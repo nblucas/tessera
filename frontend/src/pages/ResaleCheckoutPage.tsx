@@ -24,7 +24,7 @@ export function ResaleCheckoutPage() {
       <>
         <AppHeader />
         <main className="page checkout">
-          <PaymentSuccess ticket={ticket} eventTitle={event.title} />
+          <PaymentSuccess ticketId={ticket.id} eventTitle={event.title} />
         </main>
       </>
     )
@@ -54,7 +54,7 @@ export function ResaleCheckoutPage() {
   }
 
   const listingId = listing.id
-  const buyerEmail = user.email
+  const buyerEmail = user.email ?? ''
   const priceCents = listing.listingPriceCents
 
   function handlePaid() {

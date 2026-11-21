@@ -1,6 +1,5 @@
 import { Link, NavLink } from 'react-router'
 import { useAuth } from '../auth/context'
-import { useBoard } from '../board/context'
 import { FEATURES } from '../features'
 import { useSellers } from '../sellers/context'
 import { TesseraMark } from './TesseraMark'
@@ -8,9 +7,8 @@ import { TesseraMark } from './TesseraMark'
 export function AppHeader() {
   const { user, signOut } = useAuth()
   const { findSellerByEmail } = useSellers()
-  const { isBoardMember } = useBoard()
-  const isSeller = findSellerByEmail(user?.email) !== undefined
-  const isBoard = isBoardMember(user?.email)
+  const isSeller = findSellerByEmail(user?.email ?? undefined) !== undefined
+  const isBoard = user?.isBoardMember ?? false
 
   return (
     <header className="topbar">

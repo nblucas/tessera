@@ -10,7 +10,7 @@ export function MySalesPage() {
   const { tickets } = useTickets()
   const { findEvent } = useEvents()
   const { findSellerByEmail } = useSellers()
-  const seller = findSellerByEmail(user?.email)
+  const seller = findSellerByEmail(user?.email ?? undefined)
 
   if (!seller) {
     return (

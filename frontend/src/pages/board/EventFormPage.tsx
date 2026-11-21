@@ -1,13 +1,23 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { AppHeader } from '../../components/AppHeader'
+import { errorMessage } from '../../api/client'
+import { useAuth } from '../../auth/context'
 import type { Batch, Event } from '../../data/events'
-import { useEvents } from '../../events/context'
+import { useEvents, type BatchChange } from '../../events/context'
 import { FEATURES } from '../../features'
 import { centsToInput, parseReais } from '../../lib/format'
 
 const COLORS = ['#7c54c8', '#ec8d50', '#51b8aa', '#f1c964', '#e377a6', '#343058']
-const TIMEZONE_SUFFIX = ':00-03:00'
+const TIMEZONE = '-03:00'
+
+// The date field shows São Paulo time (UTC−3).
+function toDateInput(iso: string): string {
+  const local = new Date(new Date(iso).getTime() - 3 * 60 * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+type BatchInput = Pick<Batch, 'id' | 'name' | 'priceCents' | 'quantity'>
 
 type BatchDraft = {
   key: string
@@ -33,33 +43,15 @@ function emptyBatch(): BatchDraft {
   return { key: crypto.randomUUID(), name: '', price: '', quantity: '', sold: 0 }
 }
 
-function slugify(text: string): string {
-  const slug = text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  return `${slug || 'event'}-${crypto.randomUUID().slice(0, 4)}`
-}
-
+// Waits for the events to load before building the form, so editing an event opened by URL
+// (or after a reload) starts from its saved values.
 export function EventFormPage() {
   const { eventId } = useParams()
-  const navigate = useNavigate()
-  const { findEvent, saveEvent } = useEvents()
+  const { findEvent, loading } = useEvents()
   const existing = findEvent(eventId)
   const isNew = eventId === undefined
 
-  const [title, setTitle] = useState(existing?.title ?? '')
-  const [description, setDescription] = useState(existing?.description ?? '')
-  const [date, setDate] = useState(existing?.date.slice(0, 16) ?? '')
-  const [location, setLocation] = useState(existing?.location ?? '')
-  const [color, setColor] = useState(existing?.color ?? COLORS[0])
-  const [resaleCap, setResaleCap] = useState(String(existing?.resaleCapPercent ?? 120))
-  const [batches, setBatches] = useState<BatchDraft[]>(
-    existing ? existing.batches.map(toDraft) : [emptyBatch()],
-  )
-  const [error, setError] = useState<string | null>(null)
+  if (!isNew && !existing && loading) return <AppHeader />
 
   if (!isNew && !existing) {
     return (
@@ -75,6 +67,27 @@ export function EventFormPage() {
     )
   }
 
+  return <EventForm key={existing?.id ?? 'new'} existing={existing} />
+}
+
+function EventForm({ existing }: { existing: Event | undefined }) {
+  const navigate = useNavigate()
+  const { sign } = useAuth()
+  const { createEvent, updateEvent, changeBatches } = useEvents()
+  const isNew = existing === undefined
+
+  const [title, setTitle] = useState(existing?.title ?? '')
+  const [description, setDescription] = useState(existing?.description ?? '')
+  const [date, setDate] = useState(existing ? toDateInput(existing.date) : '')
+  const [location, setLocation] = useState(existing?.location ?? '')
+  const [color, setColor] = useState(existing?.color ?? COLORS[0])
+  const [resaleCap, setResaleCap] = useState(String(existing?.resaleCapPercent ?? 120))
+  const [batches, setBatches] = useState<BatchDraft[]>(
+    existing ? existing.batches.map(toDraft) : [emptyBatch()],
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
   function updateBatch(key: string, change: Partial<BatchDraft>) {
     setBatches((current) =>
       current.map((batch) => (batch.key === key ? { ...batch, ...change } : batch)),
@@ -82,7 +95,7 @@ export function EventFormPage() {
     setError(null)
   }
 
-  function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
 
     if (!title.trim() || !date || !location.trim()) {
@@ -99,7 +112,7 @@ export function EventFormPage() {
       return
     }
 
-    const parsed: Batch[] = []
+    const parsed: BatchInput[] = []
     for (const [index, draft] of batches.entries()) {
       const priceCents = parseReais(draft.price)
       const quantity = Number(draft.quantity)
@@ -122,22 +135,66 @@ export function EventFormPage() {
         name: draft.name.trim(),
         priceCents,
         quantity,
-        sold: draft.sold,
       })
     }
 
-    const event: Event = {
-      id: existing?.id ?? slugify(title),
-      title: title.trim(),
-      description: description.trim(),
-      date: `${date}${TIMEZONE_SUFFIX}`,
-      location: location.trim(),
-      color,
-      resaleCapPercent: cap,
-      batches: parsed,
+    setSaving(true)
+    setError(null)
+    try {
+      const details = {
+        title: title.trim(),
+        description: description.trim(),
+        date: `${date}:00${TIMEZONE}`,
+        location: location.trim(),
+        color,
+      }
+      const event = existing
+        ? await updateEvent(existing.id, details)
+        : await createEvent(details)
+      await saveBatches(event.id, parsed)
+      navigate('/board/events')
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setSaving(false)
     }
-    saveEvent(event)
-    navigate('/board/events')
+  }
+
+  // Each change to a batch's price or quantity is a ledger action the director signs.
+  // Names are storefront data and need no signature. Every action is signed only after the
+  // previous one was submitted, so each signature uses the next nonce.
+  async function saveBatches(eventId: string, parsed: BatchInput[]) {
+    const before = new Map((existing?.batches ?? []).map((batch) => [batch.id, batch]))
+    const submit = async (change: () => Promise<BatchChange>) =>
+      changeBatches(eventId, [await change()])
+
+    for (const removed of before.values()) {
+      if (!parsed.some((batch) => batch.id === removed.id)) {
+        await submit(async () => ({
+          batchId: removed.id,
+          action: await sign('BatchRemoved', { eventId, batchId: removed.id }),
+        }))
+      }
+    }
+    for (const batch of parsed) {
+      const old = before.get(batch.id)
+      const fields = { eventId, batchId: batch.id, priceCents: batch.priceCents, quantity: batch.quantity }
+      if (!old) {
+        await submit(async () => ({
+          batchId: batch.id,
+          name: batch.name,
+          action: await sign('BatchCreated', fields),
+        }))
+      } else if (old.priceCents !== batch.priceCents || old.quantity !== batch.quantity) {
+        await submit(async () => ({
+          batchId: batch.id,
+          name: batch.name,
+          action: await sign('BatchUpdated', fields),
+        }))
+      } else if (old.name !== batch.name) {
+        await submit(async () => ({ batchId: batch.id, name: batch.name }))
+      }
+    }
   }
 
   return (
@@ -210,6 +267,10 @@ export function EventFormPage() {
           </div>
 
           <h2 className="section-title">Batches</h2>
+          <p className="hint">
+            A batch's price and quantity are frozen after its first sale. To sell more, add a new
+            batch.
+          </p>
           <div className="batch-editor">
             {batches.map((batch) => (
               <div key={batch.key} className="batch-editor-row">
@@ -220,12 +281,16 @@ export function EventFormPage() {
                 />
                 <input
                   placeholder="Price (R$)"
+                  disabled={batch.sold > 0}
+                  title={batch.sold > 0 ? 'Frozen after the first sale' : undefined}
                   inputMode="decimal"
                   value={batch.price}
                   onChange={(e) => updateBatch(batch.key, { price: e.target.value })}
                 />
                 <input
                   placeholder="Quantity"
+                  disabled={batch.sold > 0}
+                  title={batch.sold > 0 ? 'Frozen after the first sale' : undefined}
                   inputMode="numeric"
                   value={batch.quantity}
                   onChange={(e) => updateBatch(batch.key, { quantity: e.target.value })}
@@ -260,7 +325,9 @@ export function EventFormPage() {
             <Link to="/board/events" className="button-link secondary-link">
               Cancel
             </Link>
-            <button type="submit">{isNew ? 'Create event' : 'Save changes'}</button>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : isNew ? 'Create event' : 'Save changes'}
+            </button>
           </div>
         </form>
       </main>

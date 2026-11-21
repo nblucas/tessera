@@ -43,6 +43,14 @@ Rows marked *(roadmap)* belong to features outside the MVP scope: resale, seller
 | Resale search and sorting *(roadmap)* | Built by the indexer from ledger listings |
 | Rotating QR code, every 30 s *(roadmap)* | Generated in the app and signed by the holder's key; nothing is stored |
 
+## Who signs ledger records
+
+- **Users sign their own records** (board actions, batches, expenses, votes) as EIP-712 typed messages, with a key that never leaves their device. The relayer only forwards signed records and pays gas, so the backend cannot forge a vote or a handover.
+- **The payment oracle signs only ticket issuance.** Its key and the relayer's are separate.
+- The rules (board role, majority of the **current** board, batches frozen after the first sale) are enforced by the ledger itself. The backend checks them early only to show friendly errors.
+
+The MVP record types are listed in `BACKEND.md` ("Record types"). Income is derived from ticket issuance rather than written as a separate record.
+
 ## Limits
 
 1. The ledger guarantees a record is not changed after it is written, not that every real-world transaction is written. An expense paid off the books never shows up.

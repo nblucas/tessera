@@ -1,46 +1,55 @@
-import { useState, type ReactNode } from 'react'
-import { SEED_EVENTS, type Event } from '../data/events'
-import { EventsContext } from './context'
+import type { ReactNode } from 'react'
+import { api } from '../api/client'
+import { useAccountData } from '../api/useAccountData'
+import type { EventView } from '../api/types'
+import { useAuth } from '../auth/context'
+import { DEFAULT_RESALE_CAP_PERCENT, type Event } from '../data/events'
+import { EventsContext, type BatchChange, type EventDetails } from './context'
 
-const STORAGE_KEY = 'tessera.events'
-
-function loadEvents(): Event[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Event[]) : SEED_EVENTS
-  } catch {
-    return SEED_EVENTS
-  }
+function toEvent(view: EventView): Event {
+  return { ...view, resaleCapPercent: DEFAULT_RESALE_CAP_PERCENT }
 }
 
-function persist(events: Event[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events))
-  } catch {
-    // Storage unavailable: keep events in memory only.
-  }
-}
+const NO_EVENTS: Event[] = []
+const loadEvents = async () => (await api.get<EventView[]>('/events')).map(toEvent)
 
 export function EventsProvider({ children }: { children: ReactNode }) {
-  const [events, setEvents] = useState<Event[]>(loadEvents)
+  const { user } = useAuth()
+  const { data: events, loading, refresh, update } = useAccountData(
+    user?.id ?? null,
+    loadEvents,
+    NO_EVENTS,
+  )
+
+  function store(view: EventView): Event {
+    const event = toEvent(view)
+    update((current) => {
+      const others = current.filter((item) => item.id !== event.id)
+      return [...others, event].sort((a, b) => a.date.localeCompare(b.date))
+    })
+    return event
+  }
 
   function findEvent(eventId: string | undefined) {
     return events.find((event) => event.id === eventId)
   }
 
-  function saveEvent(event: Event) {
-    setEvents((current) => {
-      const exists = current.some((item) => item.id === event.id)
-      const next = exists
-        ? current.map((item) => (item.id === event.id ? event : item))
-        : [...current, event]
-      persist(next)
-      return next
-    })
+  async function createEvent(details: EventDetails) {
+    return store(await api.post<EventView>('/events', details))
+  }
+
+  async function updateEvent(eventId: string, details: EventDetails) {
+    return store(await api.patch<EventView>(`/events/${eventId}`, details))
+  }
+
+  async function changeBatches(eventId: string, changes: BatchChange[]) {
+    return store(await api.post<EventView>(`/events/${eventId}/batches`, { changes }))
   }
 
   return (
-    <EventsContext.Provider value={{ events, findEvent, saveEvent }}>
+    <EventsContext.Provider
+      value={{ events, loading, findEvent, refresh, createEvent, updateEvent, changeBatches }}
+    >
       {children}
     </EventsContext.Provider>
   )

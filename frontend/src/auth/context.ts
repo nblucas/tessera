@@ -1,13 +1,19 @@
 import { createContext, useContext } from 'react'
-
-export type User = {
-  email: string
-}
+import type { AppConfig, Me } from '../api/types'
+import type { Sign } from '../wallet/wallet'
 
 export type AuthContextValue = {
-  user: User | null
-  signIn: (email: string) => void
-  signOut: () => void
+  user: Me | null
+  config: AppConfig | null
+  loading: boolean
+  // Set when this browser cannot sign for the account (see connectWallet).
+  walletError: string | null
+  requestCode: (email: string) => Promise<void>
+  signIn: (email: string, code: string) => Promise<void>
+  signOut: () => Promise<void>
+  // Reloads the account, for example after a handover changes who is on the board.
+  refreshUser: () => Promise<void>
+  sign: Sign
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

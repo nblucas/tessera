@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
+import { errorMessage, receiptUrl } from '../../api/client'
+import type { ExpenseStatus, ExpenseView, Person } from '../../api/types'
 import { useAuth } from '../../auth/context'
+import { useBoard } from '../../board/context'
 import { AppHeader } from '../../components/AppHeader'
 import { BoardTabs } from '../../components/BoardTabs'
-import { useBoard } from '../../board/context'
-import type { Expense, ExpenseStatus } from '../../data/expenses'
-import { useEvents } from '../../events/context'
 import { useExpenses } from '../../expenses/context'
 import { formatDate, formatPrice } from '../../lib/format'
 
@@ -14,17 +15,33 @@ const STATUS_LABELS: Record<ExpenseStatus, string> = {
   rejected: 'Rejected',
 }
 
-function ExpenseRow({ expense }: { expense: Expense }) {
-  const { user } = useAuth()
-  const { findEvent } = useEvents()
-  const { voteOnExpense } = useExpenses()
-  const { majority, memberName } = useBoard()
-  const event = findEvent(expense.eventId)
+const names = (people: Person[]) => people.map((person) => person.name ?? person.address).join(', ')
 
-  const email = user?.email ?? ''
-  const approved = expense.approvals.includes(email)
-  const rejected = expense.rejections.includes(email)
+function hasVoted(people: Person[], address: string | null | undefined) {
+  return people.some((person) => person.address.toLowerCase() === address?.toLowerCase())
+}
+
+function ExpenseRow({ expense, majority }: { expense: ExpenseView; majority: number }) {
+  const { user } = useAuth()
+  const { voteOnExpense } = useExpenses()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const approved = hasVoted(expense.approvals, user?.address)
+  const rejected = hasVoted(expense.rejections, user?.address)
   const canVote = expense.status === 'pending' && !approved && !rejected
+
+  async function vote(choice: 'approve' | 'reject') {
+    setBusy(true)
+    setError(null)
+    try {
+      await voteOnExpense(expense.id, choice)
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <li className="expense-row">
@@ -32,44 +49,37 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         <div>
           <p className="batch-name">{expense.description}</p>
           <p className="muted">
-            {expense.category} · {event ? event.title : 'General'} ·{' '}
-            {formatDate(expense.createdAt)}
+            {expense.category} · {expense.eventTitle ?? 'General'} · {formatDate(expense.proposedAt)}
           </p>
         </div>
         <div className="batch-action">
           <span className="event-price">{formatPrice(expense.amountCents)}</span>
-          <span className={`badge expense-${expense.status}`}>
-            {STATUS_LABELS[expense.status]}
-          </span>
+          <span className={`badge expense-${expense.status}`}>{STATUS_LABELS[expense.status]}</span>
         </div>
       </div>
 
       <div className="expense-details">
         <p className="hint expense-meta">
-          Proposed by {memberName(expense.proposedBy)} · Approved by{' '}
-          {expense.approvals.map(memberName).join(', ')} ({expense.approvals.length}/{majority})
-          {expense.rejections.length > 0 &&
-            ` · Rejected by ${expense.rejections.map(memberName).join(', ')}`}
+          Proposed by {expense.proposedBy.name ?? expense.proposedBy.address} · Approved by{' '}
+          {names(expense.approvals)} ({expense.approvals.length}/{majority})
+          {expense.rejections.length > 0 && ` · Rejected by ${names(expense.rejections)}`}
         </p>
-        <a
-          className="receipt-link"
-          href={expense.receipt.dataUrl}
-          download={expense.receipt.fileName}
-        >
-          Download receipt ({expense.receipt.fileName})
-        </a>
+        {expense.receipt.erased ? (
+          <p className="hint">Receipt file erased for privacy; its hash stays on the ledger.</p>
+        ) : (
+          <a className="receipt-link" href={receiptUrl(expense.receipt.id)} download={expense.receipt.fileName}>
+            Download receipt ({expense.receipt.fileName})
+          </a>
+        )}
       </div>
 
+      {error && <p className="error">{error}</p>}
       {canVote ? (
         <div className="expense-actions">
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => voteOnExpense(expense.id, email, 'reject')}
-          >
+          <button type="button" className="secondary" disabled={busy} onClick={() => vote('reject')}>
             Reject
           </button>
-          <button type="button" onClick={() => voteOnExpense(expense.id, email, 'approve')}>
+          <button type="button" disabled={busy} onClick={() => vote('approve')}>
             Approve
           </button>
         </div>
@@ -86,11 +96,11 @@ function ExpenseRow({ expense }: { expense: Expense }) {
 }
 
 export function BoardExpensesPage() {
-  const { expenses } = useExpenses()
-  const { majority, members } = useBoard()
-  const sorted = [...expenses].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  const pending = sorted.filter((expense) => expense.status === 'pending')
-  const decided = sorted.filter((expense) => expense.status !== 'pending')
+  const { expenses, loading } = useExpenses()
+  const { board } = useBoard()
+  const majority = board?.majority ?? 0
+  const pending = expenses.filter((expense) => expense.status === 'pending')
+  const decided = expenses.filter((expense) => expense.status !== 'pending')
 
   return (
     <>
@@ -100,7 +110,8 @@ export function BoardExpensesPage() {
           <div>
             <h1>Board · Expenses</h1>
             <p className="muted">
-              Every expense needs a receipt and {majority} of {members.length} board approvals.
+              Every expense needs a receipt and {majority} of {board?.current.members.length ?? 0}{' '}
+              board approvals.
             </p>
           </div>
           <Link to="/board/expenses/new" className="button-link">
@@ -109,7 +120,9 @@ export function BoardExpensesPage() {
         </div>
         <BoardTabs />
 
-        {sorted.length === 0 ? (
+        {loading ? (
+          <p className="muted">Loading expenses…</p>
+        ) : expenses.length === 0 ? (
           <div className="empty-state">
             <p>No expenses yet.</p>
           </div>
@@ -121,7 +134,7 @@ export function BoardExpensesPage() {
             ) : (
               <ul className="batch-list">
                 {pending.map((expense) => (
-                  <ExpenseRow key={expense.id} expense={expense} />
+                  <ExpenseRow key={expense.id} expense={expense} majority={majority} />
                 ))}
               </ul>
             )}
@@ -131,7 +144,7 @@ export function BoardExpensesPage() {
                 <h2 className="section-title">Decided</h2>
                 <ul className="batch-list">
                   {decided.map((expense) => (
-                    <ExpenseRow key={expense.id} expense={expense} />
+                    <ExpenseRow key={expense.id} expense={expense} majority={majority} />
                   ))}
                 </ul>
               </>

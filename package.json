@@ -1,0 +1,16 @@
+{
+  "name": "tessera",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "test": "npm test -w shared -w backend",
+    "typecheck": "npm run typecheck -w shared -w backend"
+  }
+}

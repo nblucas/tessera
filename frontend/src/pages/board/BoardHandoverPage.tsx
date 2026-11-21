@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
+import { errorMessage } from '../../api/client'
+import type { HandoverView, TermView } from '../../api/types'
 import { useAuth } from '../../auth/context'
 import { useBoard } from '../../board/context'
 import { AppHeader } from '../../components/AppHeader'
 import { BoardTabs } from '../../components/BoardTabs'
-import type { BoardMember, BoardTerm } from '../../data/board'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -13,49 +14,71 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 })
 
-type MemberDraft = BoardMember & { key: string }
+type MemberDraft = { name: string; email: string; key: string }
 
 function emptyMember(): MemberDraft {
   return { key: crypto.randomUUID(), name: '', email: '' }
 }
 
-function MemberList({ members }: { members: BoardMember[] }) {
+function MemberList({ members }: { members: { name: string | null; detail: string }[] }) {
   return (
     <ul className="member-list">
       {members.map((member) => (
-        <li key={member.email}>
-          <span className="batch-name">{member.name}</span>
-          <span className="muted">{member.email}</span>
+        <li key={member.detail}>
+          <span className="batch-name">{member.name ?? 'Former member'}</span>
+          <span className="muted">{member.detail}</span>
         </li>
       ))}
     </ul>
   )
 }
 
-function TermCard({ term, current = false }: { term: BoardTerm; current?: boolean }) {
+function shortAddress(address: string): string {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+function TermCard({ term, current = false }: { term: TermView; current?: boolean }) {
   return (
     <section className={`term-card${current ? ' term-current' : ''}`}>
       <div className="term-heading">
-        <p className="batch-name">Term {term.number}</p>
+        <p className="batch-name">Term {term.term}</p>
         <p className="muted">
           {dateFormatter.format(new Date(term.startedAt))} –{' '}
           {term.endedAt ? dateFormatter.format(new Date(term.endedAt)) : 'present'}
         </p>
       </div>
-      <MemberList members={term.members} />
+      <MemberList
+        members={term.members.map((member) => ({ name: member.name, detail: shortAddress(member.address) }))}
+      />
     </section>
   )
 }
 
+function useAction() {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function run(action: () => Promise<void>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return { busy, error, setError, run }
+}
+
 function ProposeForm() {
-  const { user } = useAuth()
   const { proposeHandover } = useBoard()
   const [drafts, setDrafts] = useState<MemberDraft[]>(() => [
     emptyMember(),
     emptyMember(),
     emptyMember(),
   ])
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, setError, run } = useAction()
 
   function updateDraft(key: string, change: Partial<MemberDraft>) {
     setDrafts((current) =>
@@ -89,8 +112,7 @@ function ProposeForm() {
       setError('Each director must have a different e-mail.')
       return
     }
-    if (!user) return
-    proposeHandover(user.email, members)
+    run(() => proposeHandover(members))
   }
 
   return (
@@ -132,45 +154,73 @@ function ProposeForm() {
       {error && <p className="error">{error}</p>}
 
       <div className="form-actions">
-        <button type="submit">Propose handover</button>
+        <button type="submit" disabled={busy}>
+          Propose handover
+        </button>
       </div>
     </form>
   )
 }
 
-function PendingHandover() {
+function PendingHandover({ handover }: { handover: HandoverView }) {
   const { user } = useAuth()
-  const { handover, majority, memberName, approveHandover, cancelHandover } = useBoard()
-  if (!handover || !user) return null
+  const { board, submitProposal, approveHandover, cancelHandover } = useBoard()
+  const { busy, error, run } = useAction()
 
-  const approved = handover.approvals.includes(user.email)
-  const isProposer = handover.proposedBy === user.email
+  const isProposer =
+    !!user?.address && handover.proposedBy.address?.toLowerCase() === user.address.toLowerCase()
+  const approved = handover.approvals.some(
+    (person) => person.address.toLowerCase() === user?.address?.toLowerCase(),
+  )
+  const ready = handover.missing.length === 0
 
   return (
     <section className="term-card term-pending">
       <div className="term-heading">
         <p className="batch-name">Proposed new board</p>
         <span className="badge expense-pending">
-          {handover.approvals.length}/{majority} approvals
+          {handover.status === 'draft'
+            ? ready
+              ? 'Ready to propose'
+              : 'Waiting for sign-ins'
+            : `${handover.approvals.length}/${board?.majority ?? 0} approvals`}
         </span>
       </div>
-      <MemberList members={handover.newMembers} />
+      <MemberList
+        members={handover.members.map((member) => ({
+          name: member.name,
+          detail: member.address ? member.email : `${member.email} · has not signed in yet`,
+        }))}
+      />
       <p className="hint expense-meta">
-        Proposed by {memberName(handover.proposedBy)} · Approved by{' '}
-        {handover.approvals.map(memberName).join(', ')}
+        Proposed by {handover.proposedBy.name ?? 'a director'}
+        {handover.status === 'open' &&
+          ` · Approved by ${handover.approvals.map((person) => person.name ?? person.address).join(', ')}`}
       </p>
+      {handover.status === 'draft' && !ready && (
+        <p className="hint expense-meta">
+          Each new director signs in once to create their wallet. Waiting for{' '}
+          {handover.missing.join(', ')}.
+        </p>
+      )}
       <p className="hint expense-meta">
         Once approved, the new board takes over and the current directors lose all roles. The
         full history stays with the association.
       </p>
+      {error && <p className="error">{error}</p>}
       <div className="expense-actions">
         {isProposer && (
-          <button type="button" className="secondary" onClick={() => cancelHandover(user.email)}>
+          <button type="button" className="secondary" disabled={busy} onClick={() => run(cancelHandover)}>
             Cancel proposal
           </button>
         )}
-        {!approved && (
-          <button type="button" onClick={() => approveHandover(user.email)}>
+        {handover.status === 'draft' && isProposer && (
+          <button type="button" disabled={busy || !ready} onClick={() => run(submitProposal)}>
+            Submit proposal
+          </button>
+        )}
+        {handover.status === 'open' && !approved && (
+          <button type="button" disabled={busy} onClick={() => run(approveHandover)}>
             Approve handover
           </button>
         )}
@@ -180,7 +230,7 @@ function PendingHandover() {
 }
 
 export function BoardHandoverPage() {
-  const { current, past, handover, majority, members } = useBoard()
+  const { board, loading } = useBoard()
 
   return (
     <>
@@ -188,25 +238,31 @@ export function BoardHandoverPage() {
       <main className="page">
         <h1>Board · Handover</h1>
         <p className="muted">
-          At the end of a term, propose the next board. It takes over once {majority} of the{' '}
-          {members.length} current directors approve.
+          At the end of a term, propose the next board. It takes over once {board?.majority ?? 0} of
+          the {board?.current.members.length ?? 0} current directors approve.
         </p>
         <BoardTabs />
 
-        <h2 className="section-title">Current board</h2>
-        <TermCard term={current} current />
-
-        <h2 className="section-title">Next board</h2>
-        {handover ? <PendingHandover /> : <ProposeForm />}
-
-        {past.length > 0 && (
+        {loading || !board ? (
+          <p className="muted">Loading the board…</p>
+        ) : (
           <>
-            <h2 className="section-title">Past terms</h2>
-            <div className="term-list">
-              {past.map((term) => (
-                <TermCard key={term.number} term={term} />
-              ))}
-            </div>
+            <h2 className="section-title">Current board</h2>
+            <TermCard term={board.current} current />
+
+            <h2 className="section-title">Next board</h2>
+            {board.handover ? <PendingHandover handover={board.handover} /> : <ProposeForm />}
+
+            {board.past.length > 0 && (
+              <>
+                <h2 className="section-title">Past terms</h2>
+                <div className="term-list">
+                  {board.past.map((term) => (
+                    <TermCard key={term.term} term={term} />
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </main>
