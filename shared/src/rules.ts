@@ -66,6 +66,13 @@ export function includesAddress(list: readonly Address[], address: Address): boo
   return list.some((item) => sameAddress(item, address))
 }
 
+export function isHandoverApproved(
+  approvals: readonly Address[],
+  members: readonly Address[],
+): boolean {
+  return approvals.length >= majorityOf(members.length)
+}
+
 // Only votes from the board in office count. Votes from former directors stay in the
 // history but no longer decide anything.
 export function expenseStatus(
@@ -271,7 +278,7 @@ export function applyRecord(state: LedgerState, record: LedgerRecord): LedgerSta
 function completeHandoverIfMajority(state: LedgerState) {
   const { handover, board } = state
   if (!handover || !board) return
-  if (handover.approvals.length < majorityOf(board.length)) return
+  if (!isHandoverApproved(handover.approvals, board)) return
 
   state.board = handover.members
   state.term += 1

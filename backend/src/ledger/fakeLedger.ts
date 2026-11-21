@@ -15,15 +15,13 @@ import {
 } from '@tessera/shared'
 import { asc, desc, eq, gt, sql } from 'drizzle-orm'
 import { getAddress, type Address, type Hex } from 'viem'
-import type { Db } from '../db/client'
+import type { Db, Tx } from '../db/client'
 import { entries } from '../db/schema'
 import { entryHash, GENESIS_PREV_HASH } from './hash'
 import { LedgerRejection, type GenesisWriter, type Ledger, type LedgerEvent } from './types'
 
 // Every write takes this advisory lock, so entries are appended one at a time in hash order.
 const WRITE_LOCK = 7_461_001
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
 export type FakeLedgerOptions = {
   domain: LedgerDomain
@@ -106,7 +104,7 @@ export class FakeLedger implements Ledger, GenesisWriter {
         association: row.association,
         record: row.record,
         signature: row.signature as Hex | null,
-        submittedBy: row.submittedBy as Address | null,
+        submittedBy: row.submittedBy,
         prevHash: row.prevHash,
         hash: row.hash,
         recordedAt: row.recordedAt.toISOString(),

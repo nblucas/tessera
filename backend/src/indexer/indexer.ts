@@ -1,9 +1,9 @@
 // Builds the read tables from ledger events. Each page of events is applied in one
 // transaction together with the cursor, so every event is applied exactly once.
-import { expenseStatus, majorityOf, type LedgerRecord } from '@tessera/shared'
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { expenseStatus, isHandoverApproved, type LedgerRecord } from '@tessera/shared'
+import { and, eq, sql } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { Db } from '../db/client'
+import type { Db, Tx } from '../db/client'
 import {
   appliedEvents,
   batches,
@@ -14,12 +14,11 @@ import {
   tickets,
 } from '../db/schema'
 import type { Ledger, LedgerEvent } from '../ledger/types'
+import { currentTerm } from '../queries/board'
 
 const CURSOR_NAME = 'main'
 const PAGE_SIZE = 200
 const INDEXER_LOCK = 7_461_002
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
 export class Indexer {
   private readonly db: Db
@@ -223,22 +222,12 @@ function handoverWhere(association: string, handoverId: string) {
   return and(eq(handovers.association, association), eq(handovers.handoverId, handoverId))
 }
 
-async function currentTerm(tx: Tx, association: string) {
-  const [term] = await tx
-    .select()
-    .from(boardTerms)
-    .where(and(eq(boardTerms.association, association), isNull(boardTerms.endedAt)))
-    .orderBy(desc(boardTerms.term))
-    .limit(1)
-  return term
-}
-
 async function currentMembers(tx: Tx, association: string): Promise<Address[]> {
   return (await currentTerm(tx, association))?.members ?? []
 }
 
-// Mirrors the rule in shared/rules: a majority of the current board starts the new term, and
-// every pending expense is recounted with the new board's votes only.
+// Applies the shared rule (isHandoverApproved, expenseStatus) to the read tables: the new
+// board takes office and every pending expense is recounted with its votes only.
 async function completeHandoverIfMajority(
   tx: Tx,
   association: string,
@@ -247,7 +236,7 @@ async function completeHandoverIfMajority(
 ) {
   const [handover] = await tx.select().from(handovers).where(handoverWhere(association, handoverId))
   const term = await currentTerm(tx, association)
-  if (!term || handover.approvals.length < majorityOf(term.members.length)) return
+  if (!term || !isHandoverApproved(handover.approvals, term.members)) return
 
   await tx
     .update(boardTerms)

@@ -1,11 +1,12 @@
-import { createHash } from 'node:crypto'
 import { includesAddress } from '@tessera/shared'
-import { and, desc, eq, gt, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { Address } from 'viem'
 import type { Db } from '../db/client'
-import { accounts, boardTerms, sessions } from '../db/schema'
+import { accounts, sessions } from '../db/schema'
+import { sha256Hex } from '../crypto'
 import type { Deps } from '../deps'
+import { currentTerm } from '../queries/board'
 import { forbidden, unauthorized } from './errors'
 
 export const SESSION_COOKIE = 'tessera_session'
@@ -19,9 +20,6 @@ declare module 'fastify' {
   }
 }
 
-export function sha256(text: string): string {
-  return createHash('sha256').update(text).digest('hex')
-}
 
 export function registerAuth(app: FastifyInstance, deps: Deps) {
   app.decorateRequest('account', null)
@@ -34,7 +32,7 @@ export function registerAuth(app: FastifyInstance, deps: Deps) {
       .innerJoin(accounts, eq(sessions.accountId, accounts.id))
       .where(
         and(
-          eq(sessions.id, sha256(token)),
+          eq(sessions.id, sha256Hex(token)),
           gt(sessions.expiresAt, deps.now()),
           isNull(accounts.deletedAt),
         ),
@@ -49,19 +47,13 @@ export function requireAccount(request: FastifyRequest): Account {
 }
 
 export async function currentBoardMembers(db: Db, association: string): Promise<Address[]> {
-  const [term] = await db
-    .select({ members: boardTerms.members })
-    .from(boardTerms)
-    .where(and(eq(boardTerms.association, association), isNull(boardTerms.endedAt)))
-    .orderBy(desc(boardTerms.term))
-    .limit(1)
-  return term?.members ?? []
+  return (await currentTerm(db, association))?.members ?? []
 }
 
 export async function isBoardMember(deps: Deps, account: Account): Promise<boolean> {
   if (!account.address) return false
   const members = await currentBoardMembers(deps.db, deps.config.association.id)
-  return includesAddress(members, account.address as Address)
+  return includesAddress(members, account.address)
 }
 
 // The API checks board membership early for a friendly error; the ledger enforces it anyway.

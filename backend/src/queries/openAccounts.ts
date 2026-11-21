@@ -1,5 +1,4 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
-import type { Address } from 'viem'
 import type { Db } from '../db/client'
 import { batches, events, expenseDetails, expenses, receipts, tickets } from '../db/schema'
 import { peopleByAddress } from './accounts'
@@ -60,7 +59,7 @@ export async function openAccounts(db: Db, association: string) {
 
   const person = await peopleByAddress(
     db,
-    expenseRows.flatMap(({ expense }) => expense.approvals as Address[]),
+    expenseRows.flatMap(({ expense }) => expense.approvals),
   )
   const empty = (): Ledger => ({
     ticketsSold: 0,

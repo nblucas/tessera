@@ -1,10 +1,11 @@
-import { majorityOf, signedActionSchema, type SignedAction } from '@tessera/shared'
+import { majorityOf, signedActionSchema } from '@tessera/shared'
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
-import { getAddress, type Address } from 'viem'
+import { getAddress } from 'viem'
 import { z } from 'zod'
 import { accounts, boardTerms, handoverDrafts, handovers } from '../../db/schema'
 import type { Deps } from '../../deps'
 import { peopleByAddress } from '../../queries/accounts'
+import { expectAction } from '../actions'
 import type { Api } from '../api'
 import { requireBoard } from '../auth'
 import { badRequest, conflict, forbidden, notFound } from '../errors'
@@ -48,7 +49,7 @@ export function boardRoutes(app: Api, deps: Deps) {
       .select({ email: accounts.email, address: accounts.address })
       .from(accounts)
       .where(and(eq(accounts.association, association), inArray(accounts.email, emails)))
-    return new Map(rows.map((row) => [row.email!, row.address as Address | null]))
+    return new Map(rows.map((row) => [row.email!, row.address]))
   }
 
   async function boardView() {
@@ -103,12 +104,6 @@ export function boardRoutes(app: Api, deps: Deps) {
     const draft = await activeDraft()
     if (!draft || draft.id !== id) throw notFound('No handover in progress with this id.')
     return draft
-  }
-
-  function checkAssociation(action: SignedAction) {
-    if (action.message.association !== association) {
-      throw badRequest('The action is signed for another association.')
-    }
   }
 
   app.get('/board', async (request) => {
@@ -166,16 +161,13 @@ export function boardRoutes(app: Api, deps: Deps) {
       if (missing.length > 0) {
         throw conflict(`Waiting for ${missing.map((member) => member.email).join(', ')} to sign in.`)
       }
-      const action = request.body.action as SignedAction
-      checkAssociation(action)
+      const action = expectAction(request.body.action, 'HandoverProposed', association, {
+        handoverId: draft.id,
+      })
       const expected = draft.members.map((member) => getAddress(resolved.get(member.email)!))
-      const signed = action.kind === 'HandoverProposed' ? action.message.members.map((m) => getAddress(m)) : []
-      if (
-        action.kind !== 'HandoverProposed' ||
-        action.message.handoverId !== draft.id ||
-        signed.join() !== expected.join()
-      ) {
-        throw badRequest('The signed proposal does not match this handover.')
+      const signed = action.message.members.map((member) => getAddress(member))
+      if (signed.join() !== expected.join()) {
+        throw badRequest('The signed proposal lists different directors.')
       }
 
       await deps.relayer.submit(action)
@@ -190,11 +182,9 @@ export function boardRoutes(app: Api, deps: Deps) {
     async (request) => {
       await requireBoard(deps, request)
       const draft = await draftOr404(request.params.id)
-      const action = request.body.action as SignedAction
-      checkAssociation(action)
-      if (action.kind !== 'HandoverApproved' || action.message.handoverId !== draft.id) {
-        throw badRequest('Expected a HandoverApproved action for this handover.')
-      }
+      const action = expectAction(request.body.action, 'HandoverApproved', association, {
+        handoverId: draft.id,
+      })
       await deps.relayer.submit(action)
       return boardView()
     },
@@ -216,11 +206,9 @@ export function boardRoutes(app: Api, deps: Deps) {
       if (draft.proposedBy !== account.id) throw forbidden('Only the proposer can cancel it.')
 
       if (draft.status === 'proposed') {
-        const action = request.body.action as SignedAction | undefined
-        if (action?.kind !== 'HandoverCancelled' || action.message.handoverId !== draft.id) {
-          throw badRequest('Cancelling an open proposal needs a signed HandoverCancelled.')
-        }
-        checkAssociation(action)
+        const action = expectAction(request.body.action, 'HandoverCancelled', association, {
+          handoverId: draft.id,
+        })
         await deps.relayer.submit(action)
       }
       await db.update(handoverDrafts).set({ status: 'cancelled' }).where(eq(handoverDrafts.id, draft.id))

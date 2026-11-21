@@ -3,7 +3,6 @@
 import { randomUUID } from 'node:crypto'
 import { typedDataFor, type ActionMessage, type SignedAction } from '@tessera/shared'
 import { and, eq, isNull } from 'drizzle-orm'
-import type { Address } from 'viem'
 import { accounts, orders, tickets } from './db/schema'
 import type { Deps } from './deps'
 import { LedgerRejection } from './ledger/types'
@@ -44,7 +43,7 @@ async function issueTicket(deps: Deps, order: Order) {
     ticketId,
     eventId: order.eventId,
     batchId: order.batchId,
-    owner: owner.address as Address,
+    owner: owner.address!,
     priceCents: order.priceCents,
     orderRef: order.id,
   } satisfies ActionMessage<'TicketIssued'>

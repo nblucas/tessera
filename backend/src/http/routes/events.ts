@@ -1,15 +1,16 @@
 import { randomBytes } from 'node:crypto'
-import { signedActionSchema, type SignedAction } from '@tessera/shared'
+import { signedActionSchema } from '@tessera/shared'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { batchNames, events } from '../../db/schema'
 import type { Deps } from '../../deps'
 import { findEvent, listEvents } from '../../queries/events'
+import { expectAction } from '../actions'
 import type { Api } from '../api'
 import { requireAccount, requireBoard } from '../auth'
 import { badRequest, notFound } from '../errors'
 
-const BATCH_KINDS = new Set(['BatchCreated', 'BatchUpdated', 'BatchRemoved'])
+const BATCH_KINDS = ['BatchCreated', 'BatchUpdated', 'BatchRemoved'] as const
 
 const detailsSchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -105,18 +106,11 @@ export function eventRoutes(app: Api, deps: Deps) {
       await eventOr404(eventId)
 
       for (const [index, change] of request.body.changes.entries()) {
-        const action = change.action as SignedAction | undefined
-        if (action) {
-          if (!BATCH_KINDS.has(action.kind)) {
-            throw badRequest(`Change ${index + 1}: only batch actions are allowed here.`)
-          }
-          const message = action.message as { eventId: string; batchId: string; association: string }
-          if (message.eventId !== eventId || message.batchId !== change.batchId) {
-            throw badRequest(`Change ${index + 1}: the action is signed for another batch.`)
-          }
-          if (message.association !== association) {
-            throw badRequest(`Change ${index + 1}: the action is signed for another association.`)
-          }
+        if (change.action) {
+          const action = expectAction(change.action, BATCH_KINDS, association, {
+            eventId,
+            batchId: change.batchId,
+          })
           if (action.kind === 'BatchCreated' && !change.name) {
             throw badRequest(`Change ${index + 1}: a new batch needs a name.`)
           }

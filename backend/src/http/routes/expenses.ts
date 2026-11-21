@@ -1,11 +1,13 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { signedActionSchema, type SignedAction } from '@tessera/shared'
+import { randomUUID } from 'node:crypto'
+import { signedActionSchema } from '@tessera/shared'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import type { FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { events, expenseDetails, expenses, receipts } from '../../db/schema'
+import { sha256Hex } from '../../crypto'
 import type { Deps } from '../../deps'
 import { peopleByAddress } from '../../queries/accounts'
+import { expectAction } from '../actions'
 import type { Api } from '../api'
 import { isBoardMember, requireBoard } from '../auth'
 import { badRequest, conflict, forbidden, HttpError, notFound } from '../errors'
@@ -78,7 +80,7 @@ export function expenseRoutes(app: Api, deps: Deps) {
         throw error
       })
 
-      const sha256 = createHash('sha256').update(data).digest('hex')
+      const sha256 = sha256Hex(data)
       if (sha256 !== request.query.sha256) {
         throw badRequest('The file does not match the hash computed by the app. Try again.')
       }
@@ -171,11 +173,7 @@ export function expenseRoutes(app: Api, deps: Deps) {
     async (request, reply) => {
       await requireBoard(deps, request)
       const { description, receiptId } = request.body
-      const action = request.body.action as SignedAction
-      if (action.kind !== 'ExpenseProposed') throw badRequest('Expected an ExpenseProposed action.')
-      if (action.message.association !== association) {
-        throw badRequest('The action is signed for another association.')
-      }
+      const action = expectAction(request.body.action, 'ExpenseProposed', association)
 
       const [receipt] = await db
         .select()
@@ -208,13 +206,9 @@ export function expenseRoutes(app: Api, deps: Deps) {
     { schema: { params: z.object({ expenseId: z.string() }), body: z.object({ action: signedActionSchema }) } },
     async (request) => {
       await requireBoard(deps, request)
-      const action = request.body.action as SignedAction
-      if (action.kind !== 'ExpenseVoted' || action.message.expenseId !== request.params.expenseId) {
-        throw badRequest('Expected an ExpenseVoted action for this expense.')
-      }
-      if (action.message.association !== association) {
-        throw badRequest('The action is signed for another association.')
-      }
+      const action = expectAction(request.body.action, 'ExpenseVoted', association, {
+        expenseId: request.params.expenseId,
+      })
       await deps.relayer.submit(action)
       return expenseView(request.params.expenseId)
     },

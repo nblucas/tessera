@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { batchKey } from '@tessera/shared'
 import { and, asc, count, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { batches, batchNames, events, orders, tickets } from '../../db/schema'
@@ -58,7 +59,7 @@ export function orderRoutes(app: Api, deps: Deps) {
 
       const order = await db.transaction(async (tx) => {
         // One reservation at a time per batch, so the last ticket cannot be held twice.
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`${eventId}/${batchId}`}))`)
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${batchKey(eventId, batchId)}))`)
         const [batch] = await tx
           .select()
           .from(batches)
