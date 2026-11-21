@@ -9,6 +9,8 @@ import { notFound } from '../errors'
 export function publicRoutes(app: Api, deps: Deps) {
   const { config } = deps
 
+  app.get('/config', async () => ({ demoMode: config.demoMode, association: config.association }))
+
   app.get('/accounts', async () => openAccounts(deps.db, config.association.id))
 
   // The raw ledger, so anyone can rebuild the open accounts without trusting the indexer.

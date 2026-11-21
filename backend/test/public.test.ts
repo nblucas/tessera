@@ -126,6 +126,16 @@ describe('public ledger feed', () => {
   })
 })
 
+describe('client config', () => {
+  it('tells the app whether it runs in demo mode', async () => {
+    const config = body(await t.app.inject({ method: 'GET', url: '/config' }))
+    expect(config).toEqual({
+      demoMode: false,
+      association: { id: 'atletica-integrada', name: 'Atlética Integrada' },
+    })
+  })
+})
+
 describe('API docs', () => {
   it('serves an OpenAPI document', async () => {
     const doc = body<{ paths: Record<string, unknown> }>(
