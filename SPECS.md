@@ -4,21 +4,25 @@ A guided tour of everything you can do in the clickable MVP, written so anyone c
 
 Tessera gives a student association (*atlética*) **open accounts**: every income and every approved expense is public, and no one, not even the board, can change it later. Ticket sales are how money comes in, and each sale is recorded in the open accounts automatically.
 
-> This is a frontend-only MVP with mocked data. There is no real backend, payment or blockchain yet. See `ARCHITECTURE.md` for what each part will become.
+> The app runs against the demo backend (`BACKEND.md`): real sign-in sessions, a Postgres database and a fake ledger that checks every signature. Payments, e-mail and the blockchain are still simulated. See `ARCHITECTURE.md` for what each part will become.
 
 ## Getting started
 
+You need Node 22 and Docker.
+
 ```bash
-cd frontend
 npm install
-npm run dev
+npm run db:up                           # Postgres in Docker
+cp backend/.env.example backend/.env    # demo mode
+npm run dev:backend                     # API on http://localhost:3000
+npm run dev:frontend                    # in another terminal
 ```
 
-Open the URL Vite prints (usually http://localhost:5173).
+Open the URL Vite prints (usually http://localhost:5173). The frontend reaches the API through `/api`.
 
 ### Test accounts
 
-There are no passwords. **Any valid e-mail signs you in.** Some e-mails have extra roles:
+There are no passwords. In demo mode **any valid e-mail signs you in** without a code (outside demo mode a 6-digit code is e-mailed). Some e-mails have extra roles:
 
 | Role | E-mails | What they see |
 |---|---|---|
@@ -43,13 +47,13 @@ Their past sales already count as income in the open accounts. There are no expe
 
 ### Where data lives
 
-Everything you do is saved in your browser's `localStorage` (keys starting with `tessera.`). It survives reloads but is not shared with other browsers or devices.
+Everything is saved by the backend in Postgres, so every browser sees the same data. Each account also gets a wallet key, created in the browser on first sign-in and kept in IndexedDB; board actions (votes, batches, handovers) are signed with it. The three seed directors have fixed demo keys, so they can sign from any browser.
 
 To test flows that involve two people (a director approving another director's expense, for example), **sign out and sign in with the other e-mail in the same browser**.
 
 ### Starting over
 
-On the sign-in page, click **Reset demo data** and confirm. It deletes everything saved and brings back the seed data above.
+On the sign-in page, click **Reset demo data** and confirm. The backend deletes everything and brings back the seed data above. Everyone is signed out.
 
 ---
 
@@ -62,7 +66,7 @@ The whole story, end to end:
 3. Sign in as `diego@demo.com`, go to **Board → Expenses → New expense**, enter "Sound system rental", R$ 1.200,00, category *Suppliers*, event *End of Year Party*, and attach any image or PDF.
 4. Sign out, sign in as `elisa@demo.com`, go to **Board → Expenses** and click **Approve**. The expense becomes *Approved*.
 5. Sign out and open **Open accounts**: the expense appears under the event, the balance drops, and the receipt can be downloaded and verified.
-6. Sign in as a director, go to **Board → Handover**, propose a new board, and approve it as a second director. The old directors lose access; the history stays.
+6. Sign in as a director, go to **Board → Handover** and propose a new board (for example `elisa@demo.com` and `student@demo.com`). Sign in once as each new director, then as the proposer click **Submit proposal**, and approve it as a second director. The old directors lose access; the history stays.
 
 The sections below describe each step in detail.
 
@@ -175,9 +179,10 @@ The expense starts as **Pending** with 1 approval: submitting counts as your own
 ### 10. Board handover
 
 1. **Board → Handover** shows the current board (Term 1) and a form for the next one.
-2. Enter the name and e-mail of each new director (3 rows by default; add or remove as needed) and click **Propose handover**. Proposing counts as your approval.
-3. The proposal appears with its approval count ("1/2 approvals"). The proposer can **Cancel proposal**.
-4. Sign in as another current director and click **Approve handover**.
+2. Enter the name and e-mail of each new director (3 rows by default; add or remove as needed) and click **Propose handover**.
+3. The proposal waits until every new director has signed in once, which creates their wallet. It shows who is still missing.
+4. When everyone has signed in, the proposer clicks **Submit proposal**. Submitting counts as their approval, and the proposal shows its approval count ("1/2 approvals"). The proposer can **Cancel proposal** at any time.
+5. Sign in as another current director and click **Approve handover**.
 
 Once a majority approves:
 
@@ -246,8 +251,8 @@ With this flag on, the QR code in **My tickets** changes every 30 seconds, so a 
 
 ## Known limitations
 
-- **Mocked data, one browser.** Nothing is sent to a server; each browser has its own copy of the data.
+- **Demo backend.** Payments, e-mail and the ledger are simulated (see `BACKEND.md`).
+- **Wallet keys live in one browser.** An account created in one browser cannot sign board actions from another; clearing the browser data loses the key. The seed directors are the exception.
 - **Fake QR and Pix codes.** They cannot be read by a camera or bank app; the gate uses the ticket code instead.
-- **"X left" does not go down** when you buy in the app; it only reflects the seed data.
 - **No sponsorships yet.** The open accounts only show ticket income.
-- **Receipts are stored in the browser**, which has a limit of about 5 MB in total. If it fills up, new data shows on screen but is lost on reload.
+- **Roadmap features keep local data.** Resale, sellers and gate are not supported by the backend yet; with their flags on they use the browser or show an error.
