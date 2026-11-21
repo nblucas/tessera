@@ -151,7 +151,7 @@ Sign in as `diego@demo.com`, `elisa@demo.com` or `felipe@demo.com` and click **B
 Rules:
 
 - Title, date and location are required; prices must be valid and quantities whole numbers.
-- A batch that already has sales cannot be removed (it shows "X sold" instead of **Remove**), and its quantity cannot go below what was sold.
+- A batch that already has sales is frozen: it cannot be removed (it shows "X sold" instead of **Remove**) and its price and quantity cannot change. To sell more, add a new batch.
 
 ### 8. Submit an expense
 
@@ -183,7 +183,8 @@ Once a majority approves:
 
 - **Term 2** starts with the new directors; Term 1 moves to **Past terms** with its start and end dates.
 - The old directors lose access to **Board** immediately. The new ones get it.
-- Events, expenses and every past approval stay with the association. Votes already cast on pending expenses still count, and the new board can finish them.
+- Events, expenses and every past approval stay with the association. Expenses already approved or rejected stay that way.
+- Pending expenses are recounted with the new board's votes only. Votes from the old directors stay in the history but no longer count, so the new board decides them.
 
 Tip: use **Reset demo data** to get the original board back.
 
