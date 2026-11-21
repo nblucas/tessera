@@ -1,8 +1,10 @@
 import cookie from '@fastify/cookie'
 import multipart from '@fastify/multipart'
+import swagger from '@fastify/swagger'
 import Fastify from 'fastify'
 import {
   hasZodFastifySchemaValidationErrors,
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -16,6 +18,7 @@ import { eventRoutes } from './http/routes/events'
 import { expenseRoutes } from './http/routes/expenses'
 import { meRoutes } from './http/routes/me'
 import { orderRoutes } from './http/routes/orders'
+import { publicRoutes } from './http/routes/public'
 import { LedgerRejection } from './ledger/types'
 
 export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
@@ -55,13 +58,24 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
 
   app.register(cookie)
   app.register(multipart)
-  registerAuth(app, deps)
-  authRoutes(app, deps)
-  meRoutes(app, deps)
-  eventRoutes(app, deps)
-  orderRoutes(app, deps)
-  expenseRoutes(app, deps)
-  boardRoutes(app, deps)
+  app.register(swagger, {
+    openapi: { info: { title: 'Tessera API', version: '0.1.0' } },
+    transform: jsonSchemaTransform,
+  })
+
+  // Routes live in one plugin registered after swagger, so the OpenAPI document sees them.
+  app.register(async (instance) => {
+    const api = instance.withTypeProvider<ZodTypeProvider>()
+    registerAuth(api, deps)
+    authRoutes(api, deps)
+    meRoutes(api, deps)
+    eventRoutes(api, deps)
+    orderRoutes(api, deps)
+    expenseRoutes(api, deps)
+    boardRoutes(api, deps)
+    publicRoutes(api, deps)
+    api.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger())
+  })
 
   return app
 }
