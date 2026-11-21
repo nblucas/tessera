@@ -11,6 +11,7 @@ import type { Deps } from './deps'
 import { registerAuth } from './http/auth'
 import { HttpError } from './http/errors'
 import { authRoutes } from './http/routes/auth'
+import { boardRoutes } from './http/routes/board'
 import { eventRoutes } from './http/routes/events'
 import { expenseRoutes } from './http/routes/expenses'
 import { meRoutes } from './http/routes/me'
@@ -60,6 +61,7 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
   eventRoutes(app, deps)
   orderRoutes(app, deps)
   expenseRoutes(app, deps)
+  boardRoutes(app, deps)
 
   return app
 }
