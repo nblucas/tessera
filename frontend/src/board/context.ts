@@ -1,14 +1,17 @@
 import { createContext, useContext } from 'react'
-import type { BoardMember, BoardState } from '../data/board'
+import type { BoardView } from '../api/types'
 
-export type BoardContextValue = BoardState & {
-  members: BoardMember[]
-  majority: number
-  isBoardMember: (email: string | undefined) => boolean
-  memberName: (email: string) => string
-  proposeHandover: (proposedBy: string, newMembers: BoardMember[]) => void
-  approveHandover: (email: string) => void
-  cancelHandover: (email: string) => void
+export type NewDirector = { name: string; email: string }
+
+export type BoardContextValue = {
+  board: BoardView | null
+  loading: boolean
+  refresh: () => Promise<void>
+  proposeHandover: (members: NewDirector[]) => Promise<void>
+  // Signs and submits the proposal once every proposed director has a wallet address.
+  submitProposal: () => Promise<void>
+  approveHandover: () => Promise<void>
+  cancelHandover: () => Promise<void>
 }
 
 export const BoardContext = createContext<BoardContextValue | null>(null)

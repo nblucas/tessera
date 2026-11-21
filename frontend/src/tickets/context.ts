@@ -10,6 +10,7 @@ export type Ticket = {
   priceCents: number
   purchasedAt: string
   status: TicketStatus
+  // Roadmap fields (resale, sellers, gate); the backend does not provide them yet.
   listingPriceCents?: number
   resoldFromId?: string
   sellerId?: string
@@ -17,14 +18,11 @@ export type Ticket = {
   usedAt?: string
 }
 
-export type NewTicket = Pick<
-  Ticket,
-  'eventId' | 'batchId' | 'ownerEmail' | 'priceCents' | 'sellerId' | 'commissionCents'
->
-
 export type TicketsContextValue = {
   tickets: Ticket[]
-  issueTicket: (ticket: NewTicket) => Ticket
+  loading: boolean
+  refresh: () => Promise<void>
+  // Roadmap features, not supported by the backend yet.
   listTicket: (ticketId: string, priceCents: number) => void
   unlistTicket: (ticketId: string) => void
   buyResale: (ticketId: string, buyerEmail: string) => Ticket | null

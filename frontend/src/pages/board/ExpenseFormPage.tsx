@@ -1,15 +1,14 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { useAuth } from '../../auth/context'
 import { AppHeader } from '../../components/AppHeader'
-import { EXPENSE_CATEGORIES, type ExpenseCategory, type Receipt } from '../../data/expenses'
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from '@tessera/shared'
+import { errorMessage } from '../../api/client'
 import { useEvents } from '../../events/context'
 import { useExpenses } from '../../expenses/context'
 import { parseReais } from '../../lib/format'
-import { MAX_RECEIPT_BYTES, readReceipt } from '../../lib/receipt'
+import { MAX_RECEIPT_BYTES, sha256Hex } from '../../lib/receipt'
 
 export function ExpenseFormPage() {
-  const { user } = useAuth()
   const { events } = useEvents()
   const { proposeExpense } = useExpenses()
   const navigate = useNavigate()
@@ -18,8 +17,9 @@ export function ExpenseFormPage() {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState<ExpenseCategory>(EXPENSE_CATEGORIES[0])
   const [eventId, setEventId] = useState('')
-  const [receipt, setReceipt] = useState<Receipt | null>(null)
+  const [receipt, setReceipt] = useState<{ file: File; sha256: string } | null>(null)
   const [reading, setReading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const sortedEvents = [...events].sort((a, b) => a.date.localeCompare(b.date))
@@ -36,7 +36,7 @@ export function ExpenseFormPage() {
     }
     setReading(true)
     try {
-      setReceipt(await readReceipt(file))
+      setReceipt({ file, sha256: await sha256Hex(await file.arrayBuffer()) })
     } catch {
       setError('Could not read this file. Try another one.')
     } finally {
@@ -44,7 +44,7 @@ export function ExpenseFormPage() {
     }
   }
 
-  function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault()
     const amountCents = parseReais(amount)
 
@@ -60,17 +60,24 @@ export function ExpenseFormPage() {
       setError('Attach the receipt (invoice or Pix voucher).')
       return
     }
-    if (!user) return
 
-    proposeExpense({
-      description: description.trim(),
-      amountCents,
-      category,
-      eventId: eventId || undefined,
-      receipt,
-      proposedBy: user.email,
-    })
-    navigate('/board/expenses')
+    setSubmitting(true)
+    setError(null)
+    try {
+      await proposeExpense({
+        description: description.trim(),
+        amountCents,
+        category,
+        eventId: eventId || undefined,
+        file: receipt.file,
+        sha256: receipt.sha256,
+      })
+      navigate('/board/expenses')
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -158,8 +165,8 @@ export function ExpenseFormPage() {
             <Link to="/board/expenses" className="button-link secondary-link">
               Cancel
             </Link>
-            <button type="submit" disabled={reading}>
-              Submit expense
+            <button type="submit" disabled={reading || submitting}>
+              {submitting ? 'Submitting…' : 'Submit expense'}
             </button>
           </div>
         </form>

@@ -1,11 +1,14 @@
 import { useState, type ChangeEvent } from 'react'
-import type { Receipt } from '../data/expenses'
+import { receiptUrl } from '../api/client'
+import type { AccountsExpense } from '../api/types'
 import { sha256Hex } from '../lib/receipt'
 
 type Result = { status: 'checking' } | { status: 'match' } | { status: 'mismatch'; hash: string }
 
-export function ReceiptCheck({ receipt }: { receipt: Receipt }) {
+// Lets anyone check a copy of a receipt against the SHA-256 recorded on the ledger.
+export function ReceiptCheck({ expense }: { expense: AccountsExpense }) {
   const [result, setResult] = useState<Result | null>(null)
+  const { receipt, receiptSha256 } = expense
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -14,7 +17,7 @@ export function ReceiptCheck({ receipt }: { receipt: Receipt }) {
     setResult({ status: 'checking' })
     try {
       const hash = await sha256Hex(await file.arrayBuffer())
-      setResult(hash === receipt.sha256 ? { status: 'match' } : { status: 'mismatch', hash })
+      setResult(hash === receiptSha256 ? { status: 'match' } : { status: 'mismatch', hash })
     } catch {
       setResult(null)
     }
@@ -23,16 +26,20 @@ export function ReceiptCheck({ receipt }: { receipt: Receipt }) {
   return (
     <div className="receipt-check">
       <div className="receipt-actions">
-        <a href={receipt.dataUrl} download={receipt.fileName}>
-          Download receipt
-        </a>
+        {receipt && !receipt.erased ? (
+          <a href={receiptUrl(receipt.id)} download={receipt.fileName}>
+            Download receipt
+          </a>
+        ) : (
+          <span className="ledger-sub">The file was erased for privacy; its hash stays on the ledger.</span>
+        )}
         <label className="verify-label">
           Verify a copy
           <input type="file" className="visually-hidden" onChange={handleFile} />
         </label>
       </div>
       <p className="ledger-sub">
-        Recorded SHA-256: <code className="hash">{receipt.sha256}</code>
+        Recorded SHA-256: <code className="hash">{receiptSha256}</code>
       </p>
       {result?.status === 'checking' && <p className="ledger-sub">Computing hash…</p>}
       {result?.status === 'match' && (

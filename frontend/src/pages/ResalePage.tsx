@@ -26,7 +26,7 @@ export function ResalePage() {
             </Link>
           </div>
         ) : (
-          <ResaleList tickets={listed} currentEmail={user?.email} showEvent />
+          <ResaleList tickets={listed} currentEmail={user?.email ?? undefined} showEvent />
         )}
       </main>
     </>

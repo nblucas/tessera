@@ -11,7 +11,7 @@ import { useSellers } from '../sellers/context'
 import { formatDate, formatPrice } from '../lib/format'
 
 function BatchRow({ batch, onBuy }: { batch: Batch; onBuy: () => void }) {
-  const left = batch.quantity - batch.sold
+  const left = batch.available
   const soldOut = left <= 0
 
   return (
@@ -38,12 +38,16 @@ export function EventPage() {
   const [searchParams] = useSearchParams()
   const { findSeller, findSellerByEmail } = useSellers()
   const referrer = FEATURES.sellers ? findSeller(searchParams.get('seller')) : undefined
-  const currentSeller = FEATURES.sellers ? findSellerByEmail(user?.email) : undefined
-  const { findEvent } = useEvents()
+  const currentSeller = FEATURES.sellers ? findSellerByEmail(user?.email ?? undefined) : undefined
+  const { findEvent, loading } = useEvents()
   const event = findEvent(eventId)
   const resale = FEATURES.resale
     ? tickets.filter((ticket) => ticket.eventId === eventId && ticket.status === 'listed')
     : []
+
+  if (!event && loading) {
+    return <AppHeader />
+  }
 
   if (!event) {
     return (
@@ -98,7 +102,7 @@ export function EventPage() {
         {resale.length > 0 && (
           <>
             <h2 className="section-title">Resale</h2>
-            <ResaleList tickets={resale} currentEmail={user?.email} />
+            <ResaleList tickets={resale} currentEmail={user?.email ?? undefined} />
           </>
         )}
       </main>

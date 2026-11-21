@@ -1,77 +1,46 @@
-import { useState, type ReactNode } from 'react'
-import { useBoard } from '../board/context'
-import type { Expense } from '../data/expenses'
+import type { ReactNode } from 'react'
+import { api } from '../api/client'
+import { useAccountData } from '../api/useAccountData'
+import type { ExpenseView, ReceiptView } from '../api/types'
+import { useAuth } from '../auth/context'
 import { ExpensesContext, type NewExpense } from './context'
 
-const STORAGE_KEY = 'tessera.expenses'
+const NO_EXPENSES: ExpenseView[] = []
+const loadExpenses = () => api.get<ExpenseView[]>('/expenses')
 
-function loadExpenses(): Expense[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Expense[]) : []
-  } catch {
-    return []
-  }
-}
-
-function persist(expenses: Expense[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses))
-  } catch {
-    // Storage unavailable or full: keep expenses in memory only.
-  }
-}
-
+// Expenses as the board sees them, pending and decided. Only directors can load them.
 export function ExpensesProvider({ children }: { children: ReactNode }) {
-  const [expenses, setExpenses] = useState<Expense[]>(loadExpenses)
-  const { majority } = useBoard()
+  const { user, sign } = useAuth()
+  const { data: expenses, loading, refresh } = useAccountData(
+    user?.isBoardMember ? user.id : null,
+    loadExpenses,
+    NO_EXPENSES,
+  )
 
-  function update(change: (current: Expense[]) => Expense[]) {
-    setExpenses((current) => {
-      const next = change(current)
-      persist(next)
-      return next
+  // Uploads the receipt (the server re-checks its hash), then signs and submits the proposal.
+  async function proposeExpense(input: NewExpense) {
+    const form = new FormData()
+    form.append('file', input.file)
+    const receipt = await api.post<ReceiptView>(`/receipts?sha256=${input.sha256}`, form)
+    const action = await sign('ExpenseProposed', {
+      expenseId: crypto.randomUUID(),
+      amountCents: input.amountCents,
+      category: input.category,
+      eventId: input.eventId ?? '',
+      receiptSha256: receipt.sha256,
     })
+    await api.post('/expenses', { description: input.description, receiptId: receipt.id, action })
+    await refresh()
   }
 
-  function proposeExpense(input: NewExpense): Expense {
-    const expense: Expense = {
-      ...input,
-      id: crypto.randomUUID(),
-      approvals: [input.proposedBy],
-      rejections: [],
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    }
-    update((current) => [...current, expense])
-    return expense
-  }
-
-  function voteOnExpense(expenseId: string, email: string, vote: 'approve' | 'reject') {
-    update((current) =>
-      current.map((expense) => {
-        const alreadyVoted =
-          expense.approvals.includes(email) || expense.rejections.includes(email)
-        if (expense.id !== expenseId || expense.status !== 'pending' || alreadyVoted) {
-          return expense
-        }
-        const approvals =
-          vote === 'approve' ? [...expense.approvals, email] : expense.approvals
-        const rejections =
-          vote === 'reject' ? [...expense.rejections, email] : expense.rejections
-        const status =
-          approvals.length >= majority
-            ? 'approved'
-            : rejections.length >= majority
-              ? 'rejected'
-              : 'pending'
-        return { ...expense, approvals, rejections, status }
-      }),
-    )
+  async function voteOnExpense(expenseId: string, vote: 'approve' | 'reject') {
+    const action = await sign('ExpenseVoted', { expenseId, approve: vote === 'approve' })
+    await api.post(`/expenses/${expenseId}/votes`, { action })
+    await refresh()
   }
 
   return (
-    <ExpensesContext.Provider value={{ expenses, proposeExpense, voteOnExpense }}>
+    <ExpensesContext.Provider value={{ expenses, loading, refresh, proposeExpense, voteOnExpense }}>
       {children}
     </ExpensesContext.Provider>
   )

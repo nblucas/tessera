@@ -4,9 +4,10 @@ import { useAuth } from './context'
 
 // Sends signed-out users to /login and remembers where they were going.
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const location = useLocation()
 
+  if (loading) return null
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />
   }
