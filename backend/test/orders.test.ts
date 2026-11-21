@@ -104,6 +104,32 @@ describe('orders', () => {
     expect(response.statusCode).toBe(409)
   })
 
+  it('holds no more tickets than the batch has when buyers order at the same time', async () => {
+    const eventId = await eventWithBatch(2)
+    const buyers = []
+    for (let i = 0; i < 8; i++) buyers.push(await buyer(`rush${i}@student.edu`))
+
+    const responses = await Promise.all(
+      buyers.map((user) => user.post('/orders', { eventId, batchId: 'b1' })),
+    )
+
+    const statuses = responses.map((response) => response.statusCode).sort()
+    expect(statuses).toEqual([201, 201, 409, 409, 409, 409, 409, 409])
+    expect(await available(eventId, 'b1')).toBe(0)
+  })
+
+  it('refunds a payment for the wrong amount', async () => {
+    const user = await buyer('wrong-amount@student.edu')
+    const { order: created } = await order(user, 'end-of-year-party', 'b2')
+    const webhook = t.pix.simulatePayment(created.txid, 1000)
+    await t.app.inject({ method: 'POST', url: '/webhooks/pix', headers: webhook.headers, payload: webhook.payload })
+
+    const updated = body<Order>(await user.get(`/orders/${created.id}`))
+    expect(updated.status).toBe('refunded')
+    expect(updated.failureReason).toContain('amount')
+    expect(t.pix.refunds).toContainEqual({ txid: created.txid, amountCents: 1000 })
+  })
+
   it('releases the reservation when the charge expires unpaid', async () => {
     const eventId = await eventWithBatch(1)
     const user = await buyer('sara@student.edu')

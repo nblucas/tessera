@@ -116,8 +116,21 @@ export function orderRoutes(app: Api, deps: Deps) {
     if (!payment) throw unauthorized('Invalid webhook signature.')
 
     const [order] = await db.select().from(orders).where(eq(orders.txid, payment.txid))
-    if (!order || payment.amountCents !== order.priceCents) {
-      request.log.warn({ txid: payment.txid }, 'ignored Pix payment')
+    if (!order) {
+      request.log.warn({ txid: payment.txid }, 'ignored Pix payment for an unknown charge')
+      return { received: true }
+    }
+    if (payment.amountCents !== order.priceCents) {
+      // The money goes back; the order cannot be fulfilled with a different amount.
+      const [refunded] = await db
+        .update(orders)
+        .set({
+          status: 'refunded',
+          failureReason: `paid amount ${payment.amountCents} does not match the price ${order.priceCents}`,
+        })
+        .where(and(eq(orders.id, order.id), eq(orders.status, 'pending_payment')))
+        .returning()
+      if (refunded) await deps.pix.refund(order.txid, payment.amountCents)
       return { received: true }
     }
     const [paid] = await db

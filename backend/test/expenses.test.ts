@@ -99,6 +99,20 @@ describe('expenses', () => {
     expect(response.statusCode).toBe(400)
   })
 
+  it('rejects an expense for an event that does not exist', async () => {
+    const file = Buffer.from(`invoice ${randomUUID()}`)
+    const receipt = body<{ id: string; sha256: string }>(await upload(diego, file))
+    const action = await diego.sign('ExpenseProposed', {
+      expenseId: randomUUID(),
+      amountCents: 5000,
+      category: 'Other',
+      eventId: 'no-such-event',
+      receiptSha256: receipt.sha256,
+    })
+    const response = await diego.post('/expenses', { description: 'x', receiptId: receipt.id, action })
+    expect(response.statusCode).toBe(400)
+  })
+
   it('is approved once a second director approves', async () => {
     const { expenseId } = await proposeExpense()
     const response = await vote(elisa, expenseId, true)
@@ -130,5 +144,21 @@ describe('expenses', () => {
     expect(download.statusCode).toBe(200)
     expect(download.rawPayload.equals(file)).toBe(true)
     expect(download.headers['content-disposition']).toContain('invoice.pdf')
+  })
+
+  it('erases a receipt file for privacy but keeps its hash in the open accounts', async () => {
+    const { expense, expenseId } = await proposeExpense('Supplier with personal data')
+    await vote(elisa, expenseId, true)
+
+    expect((await student.delete(`/receipts/${expense.receipt.id}/file`)).statusCode).toBe(403)
+    expect((await diego.delete(`/receipts/${expense.receipt.id}/file`)).statusCode).toBe(204)
+
+    const download = await t.app.inject({ method: 'GET', url: `/receipts/${expense.receipt.id}` })
+    expect(download.statusCode).toBe(410)
+    const accounts = body<{ events: { expenses: { id: string; receiptSha256: string; receipt: { erased: boolean } }[] }[] }>(
+      await t.app.inject({ method: 'GET', url: '/accounts' }),
+    )
+    const line = accounts.events.flatMap((event) => event.expenses).find((item) => item.id === expenseId)
+    expect(line).toMatchObject({ receiptSha256: expense.receipt.sha256, receipt: { erased: true } })
   })
 })

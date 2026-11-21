@@ -116,7 +116,10 @@ export function expenseRoutes(app: Api, deps: Deps) {
           and(eq(expenses.association, expenseDetails.association), eq(expenses.expenseId, expenseDetails.expenseId)),
         )
         .where(and(eq(receipts.id, request.params.receiptId), eq(receipts.association, association)))
-      if (!row || row.receipt.erasedAt) throw notFound('Receipt not found.')
+      if (!row) throw notFound('Receipt not found.')
+      if (row.receipt.erasedAt) {
+        throw new HttpError(410, 'erased', 'This file was erased for privacy. Its hash stays on the ledger.')
+      }
 
       if (row.status !== 'approved') {
         const allowed = request.account && (await isBoardMember(deps, request.account))
@@ -128,6 +131,24 @@ export function expenseRoutes(app: Api, deps: Deps) {
         .header('content-type', row.receipt.mimeType)
         .header('content-disposition', `attachment; filename="${encodeURIComponent(row.receipt.fileName)}"`)
         .send(data)
+    },
+  )
+
+  // Erases a receipt file, for example on a personal data request. The hash stays on the
+  // ledger: it still proves a receipt existed, but the original can no longer be checked.
+  app.delete(
+    '/receipts/:receiptId/file',
+    { schema: { params: z.object({ receiptId: z.uuid() }) } },
+    async (request, reply) => {
+      await requireBoard(deps, request)
+      const [receipt] = await db
+        .select()
+        .from(receipts)
+        .where(and(eq(receipts.id, request.params.receiptId), eq(receipts.association, association)))
+      if (!receipt) throw notFound('Receipt not found.')
+      await deps.files.delete(receipt.storageKey)
+      await db.update(receipts).set({ erasedAt: deps.now() }).where(eq(receipts.id, receipt.id))
+      return reply.status(204).send()
     },
   )
 
@@ -166,6 +187,13 @@ export function expenseRoutes(app: Api, deps: Deps) {
       }
       const [used] = await db.select().from(expenseDetails).where(eq(expenseDetails.receiptId, receiptId))
       if (used) throw conflict('This receipt is already attached to an expense.')
+      if (action.message.eventId) {
+        const [event] = await db
+          .select({ id: events.id })
+          .from(events)
+          .where(and(eq(events.association, association), eq(events.id, action.message.eventId)))
+        if (!event) throw badRequest('This event does not exist.')
+      }
 
       await deps.relayer.submit(action)
       await db
@@ -200,5 +228,6 @@ export function receiptView(receipt: typeof receipts.$inferSelect) {
     mimeType: receipt.mimeType,
     sizeBytes: receipt.sizeBytes,
     sha256: receipt.sha256,
+    erased: receipt.erasedAt !== null,
   }
 }

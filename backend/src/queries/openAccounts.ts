@@ -10,7 +10,9 @@ type ExpenseLine = {
   category: string
   amountCents: number
   approvedBy: string[]
-  receipt: { id: string; fileName: string; sha256: string } | null
+  // From the ledger: stays even if the file is erased.
+  receiptSha256: string
+  receipt: { id: string; fileName: string; erased: boolean } | null
 }
 
 type Ledger = {
@@ -89,10 +91,10 @@ export async function openAccounts(db: Db, association: string) {
       category: expense.category,
       amountCents: expense.amountCents,
       approvedBy: expense.approvals.map((address) => person(address).name ?? address),
-      receipt:
-        receipt && !receipt.erasedAt
-          ? { id: receipt.id, fileName: receipt.fileName, sha256: receipt.sha256 }
-          : null,
+      receiptSha256: expense.receiptSha256,
+      receipt: receipt
+        ? { id: receipt.id, fileName: receipt.fileName, erased: receipt.erasedAt !== null }
+        : null,
     })
     ledger.expenseTotal += expense.amountCents
   }
