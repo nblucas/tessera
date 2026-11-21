@@ -1,6 +1,8 @@
 
+import type { Address } from 'viem'
 import {
   bigint,
+  foreignKey,
   integer,
   jsonb,
   pgSchema,
@@ -31,7 +33,7 @@ export const accounts = appSchema.table(
     // becomes pseudonymous.
     email: text('email'),
     name: text('name'),
-    address: text('address').unique(),
+    address: text('address').$type<Address>().unique(),
     createdAt: createdAt(),
     deletedAt: at('deleted_at'),
   },
@@ -52,6 +54,7 @@ export const authCodes = appSchema.table('auth_codes', {
 export const sessions = appSchema.table('sessions', {
   // SHA-256 of the cookie token; the token itself is never stored.
   id: text('id').primaryKey(),
+  association: text('association').notNull(),
   accountId: uuid('account_id')
     .notNull()
     .references(() => accounts.id, { onDelete: 'cascade' }),
@@ -63,33 +66,45 @@ export const addressChallenges = appSchema.table('address_challenges', {
   accountId: uuid('account_id')
     .primaryKey()
     .references(() => accounts.id, { onDelete: 'cascade' }),
+  association: text('association').notNull(),
   challenge: text('challenge').notNull(),
   expiresAt: at('expires_at').notNull(),
 })
 
 // Storefront content. Batches and their rules live on the ledger.
-export const events = appSchema.table('events', {
-  id: text('id').primaryKey(),
-  association: text('association').notNull().references(() => associations.id),
-  title: text('title').notNull(),
-  description: text('description').notNull(),
-  date: at('date').notNull(),
-  location: text('location').notNull(),
-  color: text('color').notNull(),
-  createdAt: createdAt(),
-})
+export const events = appSchema.table(
+  'events',
+  {
+    id: text('id').notNull(),
+    association: text('association')
+      .notNull()
+      .references(() => associations.id),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    date: at('date').notNull(),
+    location: text('location').notNull(),
+    color: text('color').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [primaryKey({ columns: [table.association, table.id] })],
+)
 
 // A batch's display name. Its price and quantity are ledger records.
 export const batchNames = appSchema.table(
   'batch_names',
   {
-    eventId: text('event_id')
-      .notNull()
-      .references(() => events.id),
+    association: text('association').notNull(),
+    eventId: text('event_id').notNull(),
     batchId: text('batch_id').notNull(),
     name: text('name').notNull(),
   },
-  (table) => [primaryKey({ columns: [table.eventId, table.batchId] })],
+  (table) => [
+    primaryKey({ columns: [table.association, table.eventId, table.batchId] }),
+    foreignKey({
+      columns: [table.association, table.eventId],
+      foreignColumns: [events.association, events.id],
+    }),
+  ],
 )
 
 export type OrderStatus = 'pending_payment' | 'paid' | 'issued' | 'failed' | 'refunded'
@@ -133,14 +148,19 @@ export const receipts = appSchema.table('receipts', {
   erasedAt: at('erased_at'),
 })
 
-export const expenseDetails = appSchema.table('expense_details', {
-  expenseId: text('expense_id').primaryKey(),
-  association: text('association').notNull(),
-  description: text('description').notNull(),
-  receiptId: uuid('receipt_id')
-    .notNull()
-    .references(() => receipts.id),
-})
+export const expenseDetails = appSchema.table(
+  'expense_details',
+  {
+    association: text('association').notNull(),
+    expenseId: text('expense_id').notNull(),
+    description: text('description').notNull(),
+    receiptId: uuid('receipt_id')
+      .notNull()
+      .unique()
+      .references(() => receipts.id),
+  },
+  (table) => [primaryKey({ columns: [table.association, table.expenseId] })],
+)
 
 export type DraftMember = { name: string; email: string }
 export type HandoverDraftStatus = 'draft' | 'proposed' | 'cancelled'

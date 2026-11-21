@@ -15,6 +15,8 @@ export const entries = ledgerSchema.table(
     nonce: bigint('nonce', { mode: 'number' }),
     record: jsonb('record').$type<LedgerRecord>().notNull(),
     signature: text('signature'),
+    // The relayer that submitted the entry and paid for it (msg.sender on a real chain).
+    submittedBy: text('submitted_by'),
     prevHash: text('prev_hash').notNull(),
     hash: text('hash').notNull().unique(),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),

@@ -68,8 +68,10 @@ export const batches = readSchema.table(
   (table) => [primaryKey({ columns: [table.association, table.eventId, table.batchId] })],
 )
 
-export const tickets = readSchema.table('tickets', {
-  ticketId: text('ticket_id').primaryKey(),
+export const tickets = readSchema.table(
+  'tickets',
+  {
+  ticketId: text('ticket_id').notNull(),
   association: text('association').notNull(),
   eventId: text('event_id').notNull(),
   batchId: text('batch_id').notNull(),
@@ -77,10 +79,14 @@ export const tickets = readSchema.table('tickets', {
   priceCents: bigint('price_cents', { mode: 'number' }).notNull(),
   orderRef: text('order_ref').notNull(),
   issuedAt: at('issued_at').notNull(),
-})
+  },
+  (table) => [primaryKey({ columns: [table.association, table.ticketId] })],
+)
 
-export const expenses = readSchema.table('expenses', {
-  expenseId: text('expense_id').primaryKey(),
+export const expenses = readSchema.table(
+  'expenses',
+  {
+  expenseId: text('expense_id').notNull(),
   association: text('association').notNull(),
   proposer: text('proposer').$type<Address>().notNull(),
   amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
@@ -93,4 +99,11 @@ export const expenses = readSchema.table('expenses', {
   status: text('status').$type<ExpenseStatus>().notNull(),
   proposedAt: at('proposed_at').notNull(),
   decidedAt: at('decided_at'),
+  },
+  (table) => [primaryKey({ columns: [table.association, table.expenseId] })],
+)
+
+// Hashes of the ledger events already applied, so an event delivered twice is applied once.
+export const appliedEvents = readSchema.table('applied_events', {
+  hash: text('hash').primaryKey(),
 })

@@ -16,7 +16,7 @@ export async function resetDemo(deps: Deps) {
       app.handover_drafts,
       ledger.entries,
       read.indexer_cursor, read.board_terms, read.handovers, read.batches, read.tickets,
-      read.expenses
+      read.expenses, read.applied_events
     RESTART IDENTITY CASCADE
   `)
   for (const file of files) await deps.files.delete(file.key)

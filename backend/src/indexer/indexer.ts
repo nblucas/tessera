@@ -4,7 +4,15 @@ import { expenseStatus, majorityOf, type LedgerRecord } from '@tessera/shared'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import type { Address } from 'viem'
 import type { Db } from '../db/client'
-import { batches, boardTerms, expenses, handovers, indexerCursor, tickets } from '../db/schema'
+import {
+  appliedEvents,
+  batches,
+  boardTerms,
+  expenses,
+  handovers,
+  indexerCursor,
+  tickets,
+} from '../db/schema'
 import type { Ledger, LedgerEvent } from '../ledger/types'
 
 const CURSOR_NAME = 'main'
@@ -44,7 +52,7 @@ export class Indexer {
     await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${INDEXER_LOCK})`)
       await tx.execute(
-        sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor`,
+        sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events`,
       )
     })
     return this.catchUp()
@@ -64,6 +72,14 @@ async function writeCursor(tx: Tx, cursor: string | null) {
 }
 
 async function applyEvent(tx: Tx, event: LedgerEvent) {
+  // An event delivered a second time (for example after a chain reorg) is applied once.
+  const [fresh] = await tx
+    .insert(appliedEvents)
+    .values({ hash: event.hash })
+    .onConflictDoNothing()
+    .returning()
+  if (!fresh) return
+
   const { association, record } = event
   const at = new Date(event.recordedAt)
 
@@ -142,14 +158,14 @@ async function applyEvent(tx: Tx, event: LedgerEvent) {
     }
 
     case 'ExpenseVoted': {
-      const [row] = await tx.select().from(expenses).where(eq(expenses.expenseId, record.expenseId))
+      const [row] = await tx.select().from(expenses).where(expenseWhere(association, record.expenseId))
       const approvals = record.approve ? [...row.approvals, record.actor] : row.approvals
       const rejections = record.approve ? row.rejections : [...row.rejections, record.actor]
       const status = expenseStatus(approvals, rejections, await currentMembers(tx, association))
       await tx
         .update(expenses)
         .set({ approvals, rejections, status, decidedAt: status === 'pending' ? null : at })
-        .where(eq(expenses.expenseId, record.expenseId))
+        .where(expenseWhere(association, record.expenseId))
       return
     }
 
@@ -197,6 +213,10 @@ function batchWhere(association: string, eventId: string, batchId: string) {
     eq(batches.eventId, eventId),
     eq(batches.batchId, batchId),
   )
+}
+
+function expenseWhere(association: string, expenseId: string) {
+  return and(eq(expenses.association, association), eq(expenses.expenseId, expenseId))
 }
 
 function handoverWhere(association: string, handoverId: string) {
@@ -254,7 +274,7 @@ async function completeHandoverIfMajority(
       await tx
         .update(expenses)
         .set({ status, decidedAt: at })
-        .where(eq(expenses.expenseId, expense.expenseId))
+        .where(expenseWhere(association, expense.expenseId))
     }
   }
 }

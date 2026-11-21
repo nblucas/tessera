@@ -24,9 +24,12 @@ export function expenseRoutes(app: Api, deps: Deps) {
     const rows = await db
       .select({ expense: expenses, details: expenseDetails, receipt: receipts, eventTitle: events.title })
       .from(expenses)
-      .innerJoin(expenseDetails, eq(expenseDetails.expenseId, expenses.expenseId))
+      .innerJoin(
+        expenseDetails,
+        and(eq(expenseDetails.association, expenses.association), eq(expenseDetails.expenseId, expenses.expenseId)),
+      )
       .innerJoin(receipts, eq(receipts.id, expenseDetails.receiptId))
-      .leftJoin(events, eq(events.id, expenses.eventId))
+      .leftJoin(events, and(eq(events.association, expenses.association), eq(events.id, expenses.eventId)))
       .where(
         and(
           eq(expenses.association, association),
@@ -108,7 +111,10 @@ export function expenseRoutes(app: Api, deps: Deps) {
         .select({ receipt: receipts, status: expenses.status })
         .from(receipts)
         .leftJoin(expenseDetails, eq(expenseDetails.receiptId, receipts.id))
-        .leftJoin(expenses, eq(expenses.expenseId, expenseDetails.expenseId))
+        .leftJoin(
+          expenses,
+          and(eq(expenses.association, expenseDetails.association), eq(expenses.expenseId, expenseDetails.expenseId)),
+        )
         .where(and(eq(receipts.id, request.params.receiptId), eq(receipts.association, association)))
       if (!row || row.receipt.erasedAt) throw notFound('Receipt not found.')
 

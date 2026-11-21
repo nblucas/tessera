@@ -36,7 +36,12 @@ export async function seed(deps: Pick<Deps, 'config' | 'db' | 'genesis' | 'index
         color: event.color,
       })
       await tx.insert(batchNames).values(
-        event.batches.map((batch) => ({ eventId: event.id, batchId: batch.id, name: batch.name })),
+        event.batches.map((batch) => ({
+          association,
+          eventId: event.id,
+          batchId: batch.id,
+          name: batch.name,
+        })),
       )
     }
   })

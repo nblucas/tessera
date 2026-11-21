@@ -58,7 +58,10 @@ export async function listEvents(
         ),
       )
       .orderBy(asc(batches.createdAt), asc(batches.batchId)),
-    db.select().from(batchNames).where(inArray(batchNames.eventId, ids)),
+    db
+      .select()
+      .from(batchNames)
+      .where(and(eq(batchNames.association, association), inArray(batchNames.eventId, ids))),
     db
       .select({ eventId: orders.eventId, batchId: orders.batchId, held: count() })
       .from(orders)

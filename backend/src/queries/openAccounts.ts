@@ -47,7 +47,10 @@ export async function openAccounts(db: Db, association: string) {
     db
       .select({ expense: expenses, description: expenseDetails.description, receipt: receipts })
       .from(expenses)
-      .leftJoin(expenseDetails, eq(expenseDetails.expenseId, expenses.expenseId))
+      .leftJoin(
+        expenseDetails,
+        and(eq(expenseDetails.association, expenses.association), eq(expenseDetails.expenseId, expenses.expenseId)),
+      )
       .leftJoin(receipts, eq(receipts.id, expenseDetails.receiptId))
       .where(and(eq(expenses.association, association), eq(expenses.status, 'approved')))
       .orderBy(asc(expenses.decidedAt)),

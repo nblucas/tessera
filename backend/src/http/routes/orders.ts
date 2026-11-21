@@ -155,10 +155,14 @@ export function orderRoutes(app: Api, deps: Deps) {
     const rows = await db
       .select({ ticket: tickets, event: events, batchName: batchNames.name })
       .from(tickets)
-      .innerJoin(events, eq(events.id, tickets.eventId))
+      .innerJoin(events, and(eq(events.association, tickets.association), eq(events.id, tickets.eventId)))
       .leftJoin(
         batchNames,
-        and(eq(batchNames.eventId, tickets.eventId), eq(batchNames.batchId, tickets.batchId)),
+        and(
+          eq(batchNames.association, tickets.association),
+          eq(batchNames.eventId, tickets.eventId),
+          eq(batchNames.batchId, tickets.batchId),
+        ),
       )
       .where(and(eq(tickets.association, association), eq(tickets.owner, account.address as `0x${string}`)))
       .orderBy(asc(tickets.issuedAt))

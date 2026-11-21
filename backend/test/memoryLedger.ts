@@ -20,6 +20,13 @@ export class MemoryEventSource implements Pick<Ledger, 'readEvents'> {
     }
   }
 
+  // Simulates a chain adapter delivering an event again (for example after a reorg).
+  redeliver(cursor: string) {
+    const event = this.events.find((item) => item.cursor === cursor)!
+    const seq = this.events.length + 1
+    this.events.push({ ...event, cursor: String(seq) })
+  }
+
   async readEvents(fromCursor: string | null, limit: number) {
     const after = fromCursor === null ? 0 : Number(fromCursor)
     const events = this.events.filter((event) => Number(event.cursor) > after).slice(0, limit)

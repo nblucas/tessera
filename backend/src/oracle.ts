@@ -29,7 +29,10 @@ async function issueTicket(deps: Deps, order: Order) {
   const { db } = deps
   const ticketId = await assignTicketId(deps, order)
 
-  const [alreadyIssued] = await db.select().from(tickets).where(eq(tickets.ticketId, ticketId))
+  const [alreadyIssued] = await db
+    .select()
+    .from(tickets)
+    .where(and(eq(tickets.association, order.association), eq(tickets.ticketId, ticketId)))
   if (alreadyIssued) return markIssued(deps, order)
 
   const [owner] = await db.select().from(accounts).where(eq(accounts.id, order.accountId))

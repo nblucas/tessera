@@ -24,7 +24,7 @@ let indexer: Indexer
 
 beforeEach(async () => {
   await testDb.db.execute(
-    sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor`,
+    sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events`,
   )
   source = new MemoryEventSource()
   indexer = new Indexer(testDb.db, source)
@@ -187,6 +187,19 @@ describe('indexer', () => {
     expect(await indexer.catchUp()).toBe(0)
     expect(await snapshot()).toEqual(first)
     expect(await batchRow()).toMatchObject({ sold: 1 })
+  })
+
+  it('ignores an event delivered a second time', async () => {
+    source.append(ASSOCIATION, ticket('t1'), expense(A), vote(B, false))
+    await indexer.catchUp()
+    const first = await snapshot()
+
+    source.redeliver('3')
+    source.redeliver('4')
+    source.redeliver('5')
+    await indexer.catchUp()
+
+    expect(await snapshot()).toEqual(first)
   })
 
   it('rebuilds the same read tables from scratch', async () => {

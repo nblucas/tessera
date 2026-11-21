@@ -36,7 +36,7 @@ export function meRoutes(app: Api, deps: Deps) {
     const expiresAt = new Date(deps.now().getTime() + CHALLENGE_TTL_MS)
     await db
       .insert(addressChallenges)
-      .values({ accountId: account.id, challenge, expiresAt })
+      .values({ accountId: account.id, association: account.association, challenge, expiresAt })
       .onConflictDoUpdate({ target: addressChallenges.accountId, set: { challenge, expiresAt } })
     return { challenge }
   })

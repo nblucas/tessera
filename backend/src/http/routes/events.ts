@@ -128,9 +128,9 @@ export function eventRoutes(app: Api, deps: Deps) {
         if (change.name) {
           await db
             .insert(batchNames)
-            .values({ eventId, batchId: change.batchId, name: change.name })
+            .values({ association, eventId, batchId: change.batchId, name: change.name })
             .onConflictDoUpdate({
-              target: [batchNames.eventId, batchNames.batchId],
+              target: [batchNames.association, batchNames.eventId, batchNames.batchId],
               set: { name: change.name },
             })
         }

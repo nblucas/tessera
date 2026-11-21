@@ -56,7 +56,9 @@ export function authRoutes(app: Api, deps: Deps) {
       const account = await findOrCreateAccount(email)
       const token = randomBytes(32).toString('base64url')
       const expiresAt = new Date(deps.now().getTime() + SESSION_TTL_MS)
-      await db.insert(sessions).values({ id: sha256(token), accountId: account.id, expiresAt })
+      await db
+        .insert(sessions)
+        .values({ id: sha256(token), association, accountId: account.id, expiresAt })
 
       reply.setCookie(SESSION_COOKIE, token, {
         httpOnly: true,
