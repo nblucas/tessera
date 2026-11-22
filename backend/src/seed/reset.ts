@@ -8,6 +8,8 @@ import { seed } from './seed'
 export async function resetDemo(deps: Deps) {
   if (!deps.config.demoMode) throw new Error('resetDemo is only available in DEMO_MODE')
 
+  if (deps.genesis.reset) await deps.genesis.reset()
+
   const files = await deps.db.select({ key: receipts.storageKey }).from(receipts)
   await deps.db.execute(sql`
     TRUNCATE

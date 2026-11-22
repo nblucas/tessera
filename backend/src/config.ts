@@ -7,6 +7,8 @@ export type Config = {
   demoMode: boolean
   association: { id: string; name: string }
   ledgerDomain: LedgerDomain
+  // When set, the backend writes to TesseraLedger instead of the fake ledger.
+  ledgerRpcUrl: string | null
   oraclePrivateKey: Hex
   relayerPrivateKey: Hex
   pixWebhookSecret: string
@@ -40,6 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       verifyingContract: (env.LEDGER_CONTRACT ??
         '0x0000000000000000000000000000000000000001') as Hex,
     },
+    ledgerRpcUrl: env.LEDGER_RPC_URL ?? null,
     oraclePrivateKey: required('ORACLE_PRIVATE_KEY', DEMO_ORACLE_KEY) as Hex,
     relayerPrivateKey: required('RELAYER_PRIVATE_KEY', DEMO_RELAYER_KEY) as Hex,
     pixWebhookSecret: required('PIX_WEBHOOK_SECRET', DEMO_WEBHOOK_SECRET),

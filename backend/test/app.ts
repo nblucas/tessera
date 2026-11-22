@@ -55,6 +55,7 @@ export async function createTestApp(overrides: Partial<Config> = {}) {
     demoMode: false,
     association: { id: ASSOCIATION, name: 'Atlética Integrada' },
     ledgerDomain: TEST_DOMAIN,
+    ledgerRpcUrl: null,
     oraclePrivateKey: generatePrivateKey(),
     relayerPrivateKey: generatePrivateKey(),
     pixWebhookSecret: 'test-webhook-secret',

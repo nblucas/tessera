@@ -19,7 +19,7 @@ export function publicRoutes(app: Api, deps: Deps) {
     {
       schema: {
         querystring: z.object({
-          cursor: z.string().regex(/^\d+$/).optional(),
+          cursor: z.string().regex(/^\d+(?::\d+)?$/).optional(),
           limit: z.coerce.number().int().min(1).max(500).default(100),
         }),
       },

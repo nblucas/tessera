@@ -2,7 +2,7 @@
 
 A guide for whoever implements the backend's ledger adapter: the class that implements `Ledger` and `GenesisWriter` (`../backend/src/ledger/types.ts`) on top of this contract, in place of the fake ledger.
 
-Nothing in this guide has been built on the backend side yet. Everything about the contract has been checked: a script using the backend's demo relayer and oracle keys wrote a genesis, issued a ticket and read the events back as described below.
+The adapter is implemented in `../backend/src/ledger/chainLedger.ts`. Setting `LEDGER_RPC_URL` makes `createLedger` (`../backend/src/ledger/factory.ts`) use it instead of `FakeLedger`.
 
 ## What changes and what does not
 
@@ -31,14 +31,20 @@ npm run deploy:local
 |---|---|
 | `LEDGER_CHAIN_ID` | `31337` |
 | `LEDGER_CONTRACT` | `0x5fbdb2315678afecb367f032d93f642f64180aa3` |
-| RPC URL | `http://127.0.0.1:8545` |
+| `LEDGER_RPC_URL` | `http://127.0.0.1:8545` |
 | Association | `atletica-integrada` |
 | Oracle | `0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc` (from `DEMO_ORACLE_KEY`) |
 | Relayer and genesis authority | `0x560197b299019E46EE2b5c4Da5027B7CD9008a6a` (from `DEMO_RELAYER_KEY`, funded with 100 test ETH) |
 
-Then start the backend with those settings and an **empty database**, so its seed writes the genesis on the chain, and start the frontend as usual (`../SPECS.md`).
+Then start the backend with those settings and an **empty database**, so its seed writes the genesis on the chain, and start the frontend as usual (`../SPECS.md`). For example:
 
-The backend has no setting for the RPC URL yet. The adapter needs one, for example `LEDGER_RPC_URL`, and `../backend/src/wiring.ts` needs a way to choose the adapter instead of `FakeLedger`.
+```bash
+LEDGER_RPC_URL=http://127.0.0.1:8545 \
+LEDGER_CONTRACT=0x5fbdb2315678afecb367f032d93f642f64180aa3 \
+npm run dev -w backend
+```
+
+The backend uses `LEDGER_RPC_URL` for the RPC URL. When it is set, `createLedger` (`../backend/src/wiring.ts` and `../backend/src/scripts/reindex.ts`) builds the chain adapter instead of `FakeLedger`.
 
 The deploy scripts use the backend's **demo** oracle and relayer keys (`scripts/demo-data.ts`). If the backend runs with other keys (`ORACLE_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY`), change them there too and deploy again: the oracle address and the genesis authority are fixed at deploy time.
 
@@ -49,7 +55,7 @@ The chain lives in memory and the backend's database does not, so both must be r
 1. Stop `npm run node`, start it again and run `npm run deploy:local`.
 2. Then reset the backend (the app's **Reset demo data** button, `POST /demo/reset`). It wipes the database and runs the seed again, which writes the genesis on the new deployment.
 
-Resetting the backend without a new deployment fails: the old contract already has a genesis and refuses another one (`BoardAlreadySet` or `GenesisClosed`). Today `resetDemo` (`../backend/src/seed/reset.ts`) truncates the fake ledger's table, which does not exist with the contract. Two options for the adapter: let the reset require a fresh deployment, as above, or take an `evm_snapshot` right after deploying and call `evm_revert` on reset (Hardhat's local chain supports both).
+The chain adapter takes an `evm_snapshot` right before writing the first genesis and `resetDemo` reverts to it, so the app's **Reset demo data** button works without a new deployment as long as the backend process that wrote the genesis is still the one serving. If the backend restarted since then, reset refuses and asks for a fresh deployment: stop the node, start it again and run `npm run deploy:local`.
 
 ## The ABI
 

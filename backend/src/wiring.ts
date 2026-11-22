@@ -7,7 +7,7 @@ import { createDb } from './db/client'
 import type { Deps } from './deps'
 import { Indexer } from './indexer/indexer'
 import type { Jobs } from './jobs'
-import { FakeLedger } from './ledger/fakeLedger'
+import { createLedger } from './ledger/factory'
 import { Relayer } from './relayer'
 
 // Wires the demo implementations. The pilot replaces the fake ledger, Pix provider and mailer
@@ -22,11 +22,7 @@ export function createDeps(config: Config, jobs: Jobs) {
   const oracle = localSigner(config.oraclePrivateKey)
   const relayerKey = localSigner(config.relayerPrivateKey)
   assertSeparateKeys(oracle, relayerKey)
-  const ledger = new FakeLedger(db, {
-    domain: config.ledgerDomain,
-    oracle: oracle.address,
-    relayer: relayerKey.address,
-  })
+  const ledger = createLedger(config, db)
   const indexer = new Indexer(db, ledger)
   const deps: Deps = {
     config,

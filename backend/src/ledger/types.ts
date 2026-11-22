@@ -27,6 +27,8 @@ export interface Ledger {
 // Seed-only: writes genesis records before any signed record exists.
 export interface GenesisWriter {
   writeGenesis(association: string, records: GenesisRecord[]): Promise<void>
+  // Returns the chain to its pre-genesis state when the ledger supports it.
+  reset?(): Promise<void>
 }
 
 export type RejectionCode = 'malformed' | 'bad_signature' | 'bad_nonce' | 'expired' | 'rule'
