@@ -1,5 +1,5 @@
 export const FEATURES = {
-  resale: false,
+  resale: true,
   sellers: false,
   gate: false,
 }

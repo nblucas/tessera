@@ -1,6 +1,9 @@
 import { createContext, useContext } from 'react'
 
-export type TicketStatus = 'valid' | 'listed' | 'used' | 'cancelled'
+// valid: usable at the entrance and resellable; listed: offered for resale; resold: replaced
+// by the buyer's ticket; revoked: its payment was reversed by the bank. used and cancelled
+// belong to the gate roadmap feature.
+export type TicketStatus = 'valid' | 'listed' | 'resold' | 'revoked' | 'used' | 'cancelled'
 
 export type Ticket = {
   id: string
@@ -10,8 +13,11 @@ export type Ticket = {
   priceCents: number
   purchasedAt: string
   status: TicketStatus
-  // Roadmap fields (resale, sellers, gate); the backend does not provide them yet.
+  faceValueCents: number
+  maxResaleCents: number
+  resaleCapPercent: number
   listingPriceCents?: number
+  // Roadmap fields (sellers, gate); the backend does not provide them yet.
   resoldFromId?: string
   sellerId?: string
   commissionCents?: number
@@ -22,10 +28,10 @@ export type TicketsContextValue = {
   tickets: Ticket[]
   loading: boolean
   refresh: () => Promise<void>
-  // Roadmap features, not supported by the backend yet.
-  listTicket: (ticketId: string, priceCents: number) => void
-  unlistTicket: (ticketId: string) => void
-  buyResale: (ticketId: string, buyerEmail: string) => Ticket | null
+  // Resale: signed by the ticket's owner and checked by the ledger (owner, cap, status).
+  listTicket: (ticketId: string, priceCents: number) => Promise<void>
+  unlistTicket: (ticketId: string) => Promise<void>
+  // Gate roadmap feature, not supported by the backend yet.
   checkIn: (ticketId: string) => void
 }
 

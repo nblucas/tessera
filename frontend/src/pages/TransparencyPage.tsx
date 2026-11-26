@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client'
 import type { Accounts, EventLedger } from '../api/types'
 import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
+import { PaymentTrust } from '../components/PaymentTrust'
 import { ReceiptCheck } from '../components/ReceiptCheck'
 import { TreasurySummary } from '../components/TreasurySummary'
 import { formatDate, formatPrice } from '../lib/format'
@@ -35,6 +36,21 @@ function LedgerCard({ ledger, event }: LedgerCardProps) {
             <tr>
               <td>Ticket sales ({ledger.ticketsSold})</td>
               <td className="amount positive">+{formatPrice(ledger.ticketIncome)}</td>
+            </tr>
+          )}
+          {event && ledger.resaleCount > 0 && (
+            <tr>
+              <td>Resale royalties ({ledger.resaleCount})</td>
+              <td className="amount positive">+{formatPrice(ledger.royaltyIncome)}</td>
+            </tr>
+          )}
+          {event && ledger.reversalCount > 0 && (
+            <tr>
+              <td>
+                Payments reversed by the bank ({ledger.reversalCount})
+                <span className="ledger-sub">Each reversed ticket was revoked and its place put back on sale</span>
+              </td>
+              <td className="amount negative">−{formatPrice(ledger.reversals)}</td>
             </tr>
           )}
           {ledger.expenses.map((expense) => (
@@ -88,6 +104,9 @@ export function TransparencyPage() {
         {accounts && (
           <>
             <TreasurySummary summary={accounts.summary} />
+
+            <h2 className="section-title">Payments</h2>
+            <PaymentTrust />
 
             <h2 className="section-title">Per event</h2>
             <div className="ledger-list per-event">

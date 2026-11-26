@@ -1377,3 +1377,36 @@ textarea:focus {
   border: 1px solid var(--border);
   border-radius: 999px;
 }
+
+/* Who reports payments */
+.trust .trust-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.5rem 1.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.trust ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.trust .trust-checks {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.trust .trust-checks li {
+  padding: 0.25rem 0;
+}
+
+.trust .trust-checks .positive {
+  color: var(--text-h);
+}
+
+.trust .trust-checks .negative {
+  color: var(--error);
+}

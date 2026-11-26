@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/context'
 import { useBoard } from '../../board/context'
 import { AppHeader } from '../../components/AppHeader'
 import { BoardTabs } from '../../components/BoardTabs'
+import { OracleSection } from '../../components/OracleSection'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -252,6 +253,9 @@ export function BoardHandoverPage() {
 
             <h2 className="section-title">Next board</h2>
             {board.handover ? <PendingHandover handover={board.handover} /> : <ProposeForm />}
+
+            <h2 className="section-title">Payment oracle</h2>
+            <OracleSection />
 
             {board.past.length > 0 && (
               <>

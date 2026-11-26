@@ -270,13 +270,14 @@ export function orderRoutes(app: Api, deps: Deps) {
     },
     async (request) => {
       requireDemo()
-      const account = requireAccount(request)
-      const order = await ownOrder(account.id, request.params.orderId)
+      requireAccount(request)
+      // Demo only: any signed-in user may pay any order, so the demo console can drive it.
+      const order = await anyOrder(request.params.orderId)
       if (request.body?.failSettlement) {
         await db.update(orders).set({ simulateSettlementFailure: true }).where(eq(orders.id, order.id))
       }
       await deliver(deps.pix.simulatePayment!(order.txid, order.priceCents))
-      return orderView(await ownOrder(account.id, order.id), deps.now())
+      return orderView(await anyOrder(order.id), deps.now())
     },
   )
 

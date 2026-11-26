@@ -13,6 +13,7 @@ import { BoardSellersPage } from './pages/board/BoardSellersPage'
 import { EventFormPage } from './pages/board/EventFormPage'
 import { ExpenseFormPage } from './pages/board/ExpenseFormPage'
 import { CheckoutPage } from './pages/CheckoutPage'
+import { DemoConsolePage } from './pages/DemoConsolePage'
 import { EventPage } from './pages/EventPage'
 import { EventsPage } from './pages/EventsPage'
 import { GatePage } from './pages/GatePage'
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/events/:eventId" element={<EventPage />} />
         <Route path="/events/:eventId/checkout/:batchId" element={<CheckoutPage />} />
         <Route path="/tickets" element={<MyTicketsPage />} />
+        <Route path="/demo" element={<DemoConsolePage />} />
         {FEATURES.resale && (
           <>
             <Route path="/resale" element={<ResalePage />} />

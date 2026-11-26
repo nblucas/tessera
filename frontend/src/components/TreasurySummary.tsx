@@ -18,7 +18,11 @@ export function TreasurySummary({ summary }: { summary: Summary }) {
         <div className="stat">
           <p className="stat-label">Total income</p>
           <p className="stat-value">{formatPrice(summary.income)}</p>
-          <p className="stat-note">From ticket sales</p>
+          <p className="stat-note">
+            Tickets {formatPrice(summary.ticketIncome)} · Resale royalties{' '}
+            {formatPrice(summary.royaltyIncome)}
+            {summary.reversals > 0 && ` · Reversals −${formatPrice(summary.reversals)}`}
+          </p>
         </div>
         <div className="stat">
           <p className="stat-label">Total expenses</p>

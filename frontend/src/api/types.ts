@@ -22,6 +22,7 @@ export type BatchView = {
   quantity: number
   sold: number
   available: number
+  resaleCapPercent: number
 }
 
 export type EventView = {
@@ -34,11 +35,22 @@ export type EventView = {
   batches: BatchView[]
 }
 
-export type OrderStatus = 'pending_payment' | 'expired' | 'paid' | 'issued' | 'failed' | 'refunded'
+export type OrderStatus =
+  | 'pending_payment'
+  | 'expired'
+  | 'paid'
+  | 'issued'
+  | 'failed'
+  | 'refunded'
+  | 'reversed'
 
 export type Order = {
   id: string
+  kind: 'ticket' | 'resale'
   status: OrderStatus
+  listedTicketId: string | null
+  paymentRef: string | null
+  createdAt: string
   eventId: string
   batchId: string
   priceCents: number
@@ -59,7 +71,73 @@ export type TicketView = {
   batchId: string
   batchName: string
   priceCents: number
+  faceValueCents: number
+  maxResaleCents: number
+  resaleCapPercent: number
+  status: 'valid' | 'listed' | 'resold' | 'revoked'
+  listingPriceCents: number | null
+  kind: 'sale' | 'resale'
   issuedAt: string
+}
+
+export type ResaleListing = {
+  ticketId: string
+  eventId: string
+  eventTitle: string
+  eventDate: string
+  color: string
+  batchName: string
+  faceValueCents: number
+  priceCents: number
+  isMine: boolean
+}
+
+export type OracleView = {
+  address: Address
+  since: string | null
+  deployedWith: Address
+  mayDo: string[]
+  mayNotDo: string[]
+  pendingChange: { proposalId: string; newOracle: Address; approvals: Address[] } | null
+}
+
+export type PaymentReport = {
+  kind: 'TicketIssued' | 'ResaleSettled' | 'PaymentRefunded' | 'PaymentReversed'
+  paymentRef: string
+  amountCents: number
+  ticketId: string | null
+  reason: string | null
+  oracle: Address
+  reportedAt: string
+}
+
+export type Reconciliation = {
+  oracle: OracleView
+  ledger: {
+    tickets: number
+    ticketCents: number
+    resales: number
+    resaleCents: number
+    refunds: number
+    refundCents: number
+    reversals: number
+    reversalCents: number
+  }
+  bank: { confirmedPayments: number; pendingSettlement: number }
+  checks: { name: string; ok: boolean; detail: string }[]
+  ok: boolean
+  recent: PaymentReport[]
+}
+
+export type PaymentEvent = {
+  id: string
+  txid: string
+  e2eid: string | null
+  amountCents: number
+  outcome: 'accepted' | 'duplicate' | 'wrong_amount' | 'unknown_charge' | 'reversal' | 'own_refund'
+  orderId: string | null
+  detail: string | null
+  receivedAt: string
 }
 
 export type Person = { address: Address; name: string | null }
@@ -127,6 +205,10 @@ export type AccountsExpense = {
 export type EventLedger = {
   ticketsSold: number
   ticketIncome: number
+  resaleCount: number
+  royaltyIncome: number
+  reversalCount: number
+  reversals: number
   income: number
   expenses: AccountsExpense[]
   expenseTotal: number
@@ -135,6 +217,8 @@ export type EventLedger = {
 
 export type TreasurySummary = {
   ticketIncome: number
+  royaltyIncome: number
+  reversals: number
   income: number
   expenses: number
   balance: number

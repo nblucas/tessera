@@ -81,7 +81,7 @@ function EventForm({ existing }: { existing: Event | undefined }) {
   const [date, setDate] = useState(existing ? toDateInput(existing.date) : '')
   const [location, setLocation] = useState(existing?.location ?? '')
   const [color, setColor] = useState(existing?.color ?? COLORS[0])
-  const [resaleCap, setResaleCap] = useState(String(existing?.resaleCapPercent ?? 120))
+  const [resaleCap, setResaleCap] = useState(String(existing?.batches[0]?.resaleCapPercent ?? 120))
   const [batches, setBatches] = useState<BatchDraft[]>(
     existing ? existing.batches.map(toDraft) : [emptyBatch()],
   )
@@ -151,7 +151,7 @@ function EventForm({ existing }: { existing: Event | undefined }) {
       const event = existing
         ? await updateEvent(existing.id, details)
         : await createEvent(details)
-      await saveBatches(event.id, parsed)
+      await saveBatches(event.id, parsed, cap)
       navigate('/board/events')
     } catch (cause) {
       setError(errorMessage(cause))
@@ -163,7 +163,7 @@ function EventForm({ existing }: { existing: Event | undefined }) {
   // Each change to a batch's price or quantity is a ledger action the director signs.
   // Names are storefront data and need no signature. Every action is signed only after the
   // previous one was submitted, so each signature uses the next nonce.
-  async function saveBatches(eventId: string, parsed: BatchInput[]) {
+  async function saveBatches(eventId: string, parsed: BatchInput[], resaleCapPercent: number) {
     const before = new Map((existing?.batches ?? []).map((batch) => [batch.id, batch]))
     const submit = async (change: () => Promise<BatchChange>) =>
       changeBatches(eventId, [await change()])
@@ -178,14 +178,26 @@ function EventForm({ existing }: { existing: Event | undefined }) {
     }
     for (const batch of parsed) {
       const old = before.get(batch.id)
-      const fields = { eventId, batchId: batch.id, priceCents: batch.priceCents, quantity: batch.quantity }
+      // The cap applies to every batch; a batch with sales is frozen, so it keeps its own.
+      const capFor = old && old.sold > 0 ? old.resaleCapPercent : resaleCapPercent
+      const fields = {
+        eventId,
+        batchId: batch.id,
+        priceCents: batch.priceCents,
+        quantity: batch.quantity,
+        resaleCapPercent: capFor,
+      }
       if (!old) {
         await submit(async () => ({
           batchId: batch.id,
           name: batch.name,
           action: await sign('BatchCreated', fields),
         }))
-      } else if (old.priceCents !== batch.priceCents || old.quantity !== batch.quantity) {
+      } else if (
+        old.priceCents !== batch.priceCents ||
+        old.quantity !== batch.quantity ||
+        old.resaleCapPercent !== capFor
+      ) {
         await submit(async () => ({
           batchId: batch.id,
           name: batch.name,

@@ -7,7 +7,7 @@ import { ResaleForm } from '../components/ResaleForm'
 import { useEvents } from '../events/context'
 import { FEATURES } from '../features'
 import { formatDate, formatPrice } from '../lib/format'
-import { maxResalePrice } from '../lib/resale'
+import { errorMessage } from '../api/client'
 import { useTickets, type Ticket, type TicketStatus } from '../tickets/context'
 
 const QR_REFRESH_SECONDS = 30
@@ -15,6 +15,8 @@ const QR_REFRESH_SECONDS = 30
 const STATUS_LABELS: Record<TicketStatus, string> = {
   valid: 'Valid',
   listed: 'Listed for resale',
+  resold: 'Resold',
+  revoked: 'Revoked: payment reversed by the bank',
   used: 'Used',
   cancelled: 'Cancelled',
 }
@@ -31,6 +33,21 @@ function useSecondsTick(): number {
 function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
   const { listTicket, unlistTicket } = useTickets()
   const [reselling, setReselling] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      setReselling(false)
+    } catch (cause) {
+      setError(errorMessage(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const { findEvent } = useEvents()
 
@@ -43,7 +60,7 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
   const refreshIn = QR_REFRESH_SECONDS - (seconds % QR_REFRESH_SECONDS)
   const isValid = ticket.status === 'valid'
   const isListed = ticket.status === 'listed'
-  const isResold = ticket.status === 'cancelled' && ticket.listingPriceCents !== undefined
+  const isResold = ticket.status === 'resold'
 
   return (
     <article className="ticket-card">
@@ -57,8 +74,8 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
         </p>
         <p className="ticket-id">#{ticket.id.slice(0, 8).toUpperCase()}</p>
         <span className={`badge status-${ticket.status}`}>
-          {isResold ? 'Resold' : STATUS_LABELS[ticket.status]}
-          {(isListed || isResold) &&
+          {STATUS_LABELS[ticket.status]}
+          {isListed &&
             ticket.listingPriceCents !== undefined &&
             ` · ${formatPrice(ticket.listingPriceCents)}`}
         </span>
@@ -78,7 +95,8 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
             <button
               type="button"
               className="secondary ticket-action"
-              onClick={() => unlistTicket(ticket.id)}
+              disabled={busy}
+              onClick={() => run(() => unlistTicket(ticket.id))}
             >
               Cancel listing
             </button>
@@ -86,16 +104,15 @@ function TicketCard({ ticket, now }: { ticket: Ticket; now: number }) {
         )}
         {FEATURES.resale && isValid && reselling && (
           <ResaleForm
-            faceValueCents={batch.priceCents}
-            capPercent={event.resaleCapPercent}
-            maxPriceCents={maxResalePrice(batch.priceCents, event.resaleCapPercent)}
-            onSubmit={(priceCents) => {
-              listTicket(ticket.id, priceCents)
-              setReselling(false)
-            }}
+            faceValueCents={ticket.faceValueCents}
+            capPercent={ticket.resaleCapPercent}
+            maxPriceCents={ticket.maxResaleCents}
+            onSubmit={(priceCents) => run(() => listTicket(ticket.id, priceCents))}
             onCancel={() => setReselling(false)}
           />
         )}
+        {error && <p className="error">{error}</p>}
+        {isResold && <p className="hint">Sold to another student. Your share was paid by Pix.</p>}
       </div>
       {isValid && (
         <div className="ticket-qr">

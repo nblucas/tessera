@@ -1,48 +1,38 @@
 import { useNavigate } from 'react-router'
-import { useEvents } from '../events/context'
+import type { ResaleListing } from '../api/types'
 import { formatDate, formatPrice } from '../lib/format'
-import type { Ticket } from '../tickets/context'
 
 type ResaleListProps = {
-  tickets: Ticket[]
-  currentEmail?: string
+  listings: ResaleListing[]
   showEvent?: boolean
 }
 
-export function ResaleList({ tickets, currentEmail, showEvent = false }: ResaleListProps) {
+export function ResaleList({ listings, showEvent = false }: ResaleListProps) {
   const navigate = useNavigate()
-  const { findEvent } = useEvents()
 
   return (
     <ul className="batch-list resale-list">
-      {tickets.map((ticket) => {
-        const event = findEvent(ticket.eventId)
-        const batch = event?.batches.find((item) => item.id === ticket.batchId)
-        if (!event || !batch || ticket.listingPriceCents === undefined) return null
-        const isMine = ticket.ownerEmail === currentEmail
-
-        return (
-          <li key={ticket.id} className="batch-row">
-            <div>
-              {showEvent && <p className="event-date">{formatDate(event.date)}</p>}
-              <p className="batch-name">{showEvent ? event.title : batch.name}</p>
-              <p className="muted">
-                {showEvent && `${batch.name} · `}Face value {formatPrice(batch.priceCents)}
-              </p>
-            </div>
-            <div className="batch-action">
-              <span className="event-price">{formatPrice(ticket.listingPriceCents)}</span>
-              {isMine ? (
-                <span className="badge">Your listing</span>
-              ) : (
-                <button type="button" onClick={() => navigate(`/resale/${ticket.id}/checkout`)}>
-                  Buy
-                </button>
-              )}
-            </div>
-          </li>
-        )
-      })}
+      {listings.map((listing) => (
+        <li key={listing.ticketId} className="batch-row">
+          <div>
+            {showEvent && <p className="event-date">{formatDate(listing.eventDate)}</p>}
+            <p className="batch-name">{showEvent ? listing.eventTitle : listing.batchName}</p>
+            <p className="muted">
+              {showEvent && `${listing.batchName} · `}Face value {formatPrice(listing.faceValueCents)}
+            </p>
+          </div>
+          <div className="batch-action">
+            <span className="event-price">{formatPrice(listing.priceCents)}</span>
+            {listing.isMine ? (
+              <span className="badge">Your listing</span>
+            ) : (
+              <button type="button" onClick={() => navigate(`/resale/${listing.ticketId}/checkout`)}>
+                Buy
+              </button>
+            )}
+          </div>
+        </li>
+      ))}
     </ul>
   )
 }

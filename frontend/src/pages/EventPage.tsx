@@ -3,7 +3,7 @@ import { useAuth } from '../auth/context'
 import { AppHeader } from '../components/AppHeader'
 import { ResaleList } from '../components/ResaleList'
 import { SellerLinkBox } from '../components/SellerLinkBox'
-import { useTickets } from '../tickets/context'
+import { useListings } from '../api/useListings'
 import type { Batch } from '../data/events'
 import { useEvents } from '../events/context'
 import { FEATURES } from '../features'
@@ -34,16 +34,14 @@ export function EventPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { tickets } = useTickets()
   const [searchParams] = useSearchParams()
   const { findSeller, findSellerByEmail } = useSellers()
   const referrer = FEATURES.sellers ? findSeller(searchParams.get('seller')) : undefined
   const currentSeller = FEATURES.sellers ? findSellerByEmail(user?.email ?? undefined) : undefined
   const { findEvent, loading } = useEvents()
   const event = findEvent(eventId)
-  const resale = FEATURES.resale
-    ? tickets.filter((ticket) => ticket.eventId === eventId && ticket.status === 'listed')
-    : []
+  const listings = useListings(FEATURES.resale ? eventId : '__none__')
+  const resale = FEATURES.resale ? (listings ?? []) : []
 
   if (!event && loading) {
     return <AppHeader />
@@ -102,7 +100,7 @@ export function EventPage() {
         {resale.length > 0 && (
           <>
             <h2 className="section-title">Resale</h2>
-            <ResaleList tickets={resale} currentEmail={user?.email ?? undefined} />
+            <ResaleList listings={resale} />
           </>
         )}
       </main>

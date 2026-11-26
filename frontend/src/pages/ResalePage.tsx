@@ -1,13 +1,10 @@
 import { Link } from 'react-router'
-import { useAuth } from '../auth/context'
+import { useListings } from '../api/useListings'
 import { AppHeader } from '../components/AppHeader'
 import { ResaleList } from '../components/ResaleList'
-import { useTickets } from '../tickets/context'
 
 export function ResalePage() {
-  const { user } = useAuth()
-  const { tickets } = useTickets()
-  const listed = tickets.filter((ticket) => ticket.status === 'listed')
+  const listings = useListings()
 
   return (
     <>
@@ -15,10 +12,13 @@ export function ResalePage() {
       <main className="page">
         <h1>Resale</h1>
         <p className="muted">
-          Tickets resold by other students, at or below the price cap set by the association.
+          Tickets resold by other students, at or below the price cap set by the association. The
+          ledger refuses any listing above the cap or by someone who does not own the ticket.
         </p>
 
-        {listed.length === 0 ? (
+        {listings === null ? (
+          <p className="muted">Loading listings…</p>
+        ) : listings.length === 0 ? (
           <div className="empty-state">
             <p>No tickets for resale right now.</p>
             <Link to="/" className="button-link">
@@ -26,7 +26,7 @@ export function ResalePage() {
             </Link>
           </div>
         ) : (
-          <ResaleList tickets={listed} currentEmail={user?.email ?? undefined} showEvent />
+          <ResaleList listings={listings} showEvent />
         )}
       </main>
     </>

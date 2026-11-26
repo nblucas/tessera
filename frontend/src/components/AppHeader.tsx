@@ -5,7 +5,7 @@ import { useSellers } from '../sellers/context'
 import { TesseraMark } from './TesseraMark'
 
 export function AppHeader() {
-  const { user, signOut } = useAuth()
+  const { user, config, signOut } = useAuth()
   const { findSellerByEmail } = useSellers()
   const isSeller = findSellerByEmail(user?.email ?? undefined) !== undefined
   const isBoard = user?.isBoardMember ?? false
@@ -29,6 +29,7 @@ export function AppHeader() {
             </>
           )}
           <NavLink to="/transparency">Open accounts</NavLink>
+          {user && config?.demoMode && <NavLink to="/demo">Demo console</NavLink>}
           {isBoard && (
             <>
               <NavLink to="/board">Board</NavLink>

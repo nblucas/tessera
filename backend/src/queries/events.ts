@@ -9,6 +9,7 @@ export type BatchView = {
   quantity: number
   sold: number
   available: number
+  resaleCapPercent: number
 }
 
 export type EventView = {
@@ -91,6 +92,7 @@ export async function listEvents(
           quantity: batch.quantity,
           sold: batch.sold,
           available: Math.max(0, batch.quantity - batch.sold - held),
+          resaleCapPercent: batch.resaleCapPercent,
         }
       }),
   }))

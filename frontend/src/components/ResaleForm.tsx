@@ -6,7 +6,7 @@ type ResaleFormProps = {
   faceValueCents: number
   maxPriceCents: number
   capPercent: number
-  onSubmit: (priceCents: number) => void
+  onSubmit: (priceCents: number) => void | Promise<void>
   onCancel: () => void
 }
 
@@ -29,10 +29,7 @@ export function ResaleForm({
       setError('Enter a valid price, e.g. 45,00.')
       return
     }
-    if (priceCents > maxPriceCents) {
-      setError(`The maximum price for this ticket is ${formatPrice(maxPriceCents)}.`)
-      return
-    }
+    // The cap is not checked here on purpose: the ledger enforces it, and its refusal is shown.
     onSubmit(priceCents)
   }
 
@@ -50,9 +47,9 @@ export function ResaleForm({
         }}
         autoFocus
       />
-      <p className="hint resale-cap">
+      <p className={`hint resale-cap${priceCents !== null && priceCents > maxPriceCents ? ' error' : ''}`}>
         Max {formatPrice(maxPriceCents)} ({capPercent}% of the {formatPrice(faceValueCents)} face
-        value)
+        value). The ledger refuses anything higher.
       </p>
       {error && <p className="error">{error}</p>}
 
