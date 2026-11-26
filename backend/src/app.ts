@@ -19,7 +19,7 @@ import { expenseRoutes } from './http/routes/expenses'
 import { meRoutes } from './http/routes/me'
 import { orderRoutes } from './http/routes/orders'
 import { publicRoutes } from './http/routes/public'
-import { LedgerRejection } from './ledger/types'
+import { LedgerRejection, LedgerResetUnavailable } from './ledger/types'
 
 export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
   const app = Fastify({ logger: options.logger ?? false }).withTypeProvider<ZodTypeProvider>()
@@ -32,6 +32,9 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
     }
     if (error instanceof HttpError) {
       return reply.status(error.status).send({ error: error.code, message: error.message })
+    }
+    if (error instanceof LedgerResetUnavailable) {
+      return reply.status(409).send({ error: 'reset_unavailable', message: error.message })
     }
     if (error instanceof LedgerRejection) {
       return reply.status(409).send({ error: error.code, message: error.message })

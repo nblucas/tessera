@@ -31,6 +31,15 @@ export interface GenesisWriter {
   reset?(): Promise<void>
 }
 
+// The ledger cannot go back to its pre-genesis state, for example a chain whose snapshot was
+// lost when the backend restarted. The message says what to do instead.
+export class LedgerResetUnavailable extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'LedgerResetUnavailable'
+  }
+}
+
 export type RejectionCode = 'malformed' | 'bad_signature' | 'bad_nonce' | 'expired' | 'rule'
 
 export class LedgerRejection extends Error {

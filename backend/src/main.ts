@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from './app'
 import { loadConfig } from './config'
 import { associations } from './db/schema'
+import { checkLedger } from './ledger/factory'
 import { runMigrations } from './db/migrate'
 import { PgBossJobs } from './jobs'
 import { registerOracle } from './oracle'
@@ -16,6 +17,7 @@ await runMigrations(config.databaseUrl)
 const jobs = new PgBossJobs(config.databaseUrl)
 await jobs.start()
 const { deps } = createDeps(config, jobs)
+await checkLedger(deps.ledger, config)
 
 const [existing] = await deps.db
   .select()

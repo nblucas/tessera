@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
+import { LedgerResetUnavailable } from '../src/ledger/types'
 import { body, createTestApp, type TestApp } from './app'
 import { multipart } from './multipart'
 
@@ -148,6 +149,24 @@ describe('API docs', () => {
 describe('demo reset', () => {
   it('is not available outside demo mode', async () => {
     expect((await t.app.inject({ method: 'POST', url: '/demo/reset' })).statusCode).toBe(404)
+  })
+
+  it('explains why the ledger cannot be reset', async () => {
+    const demo = await createTestApp({ demoMode: true })
+    try {
+      demo.deps.genesis.reset = async () => {
+        throw new LedgerResetUnavailable('Restart the node and deploy again.')
+      }
+      const response = await demo.app.inject({ method: 'POST', url: '/demo/reset' })
+      expect(response.statusCode).toBe(409)
+      expect(body(response)).toMatchObject({
+        error: 'reset_unavailable',
+        message: 'Restart the node and deploy again.',
+      })
+      expect((await accounts(demo)).summary.income).toBe(SEED_INCOME)
+    } finally {
+      await demo.close()
+    }
   })
 
   it('brings back the seed data in demo mode', async () => {

@@ -48,6 +48,8 @@ The backend uses `LEDGER_RPC_URL` for the RPC URL. When it is set, `createLedger
 
 The deploy scripts use the backend's **demo** oracle and relayer keys (`scripts/demo-data.ts`). If the backend runs with other keys (`ORACLE_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY`), change them there too and deploy again: the oracle address and the genesis authority are fixed at deploy time.
 
+At startup the backend checks the deployed contract against its settings and refuses to start, with a message saying what to fix, when the association or the oracle differ, or when the genesis is still open and the relayer is not its authority (a `deploy:local:demo` deployment).
+
 ### Starting over
 
 The chain lives in memory and the backend's database does not, so both must be reset together:

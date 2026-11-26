@@ -22,7 +22,13 @@ import {
 import { privateKeyToAccount, type PrivateKeyAccount } from 'viem/accounts'
 import { tesseraLedgerAbi } from '../../../contracts/abi/TesseraLedger'
 import { GENESIS_PREV_HASH } from './hash'
-import { LedgerRejection, type GenesisWriter, type Ledger, type LedgerEvent } from './types'
+import {
+  LedgerRejection,
+  LedgerResetUnavailable,
+  type GenesisWriter,
+  type Ledger,
+  type LedgerEvent,
+} from './types'
 
 const ecdsaErrors = [
   { type: 'error', name: 'ECDSAInvalidSignature', inputs: [] },
@@ -122,6 +128,48 @@ export class ChainLedger implements Ledger, GenesisWriter {
     this.contract = options.contract
   }
 
+  // Fails fast when the deployed contract does not match the backend's settings. Otherwise
+  // a wrong oracle key would only show up later, as every ticket failing to issue.
+  async checkDeployment(expected: {
+    association: string
+    oracle: Address
+    relayer: Address
+  }): Promise<void> {
+    const read = (functionName: 'association' | 'oracle' | 'genesisAuthority' | 'genesisClosed') =>
+      this.publicClient.readContract({ address: this.contract, abi, functionName })
+    let deployed: [string, Address, Address, boolean]
+    try {
+      deployed = await Promise.all([
+        read('association') as Promise<string>,
+        read('oracle') as Promise<Address>,
+        read('genesisAuthority') as Promise<Address>,
+        read('genesisClosed') as Promise<boolean>,
+      ])
+    } catch (error) {
+      throw new Error(
+        `No TesseraLedger contract answers at ${this.contract}. Check LEDGER_RPC_URL and LEDGER_CONTRACT, or deploy with npm run deploy:local.`,
+        { cause: error },
+      )
+    }
+    const [association, oracle, genesisAuthority, genesisClosed] = deployed
+
+    if (association !== expected.association) {
+      throw new Error(
+        `The contract belongs to association "${association}", but the backend is set up for "${expected.association}".`,
+      )
+    }
+    if (getAddress(oracle) !== getAddress(expected.oracle)) {
+      throw new Error(
+        `The contract's oracle is ${oracle}, but ORACLE_PRIVATE_KEY belongs to ${expected.oracle}. Deploy again with the backend's oracle key.`,
+      )
+    }
+    if (!genesisClosed && getAddress(genesisAuthority) !== getAddress(expected.relayer)) {
+      throw new Error(
+        `The contract's genesis authority is ${genesisAuthority}, not the backend's relayer ${expected.relayer}, so the backend cannot write the seed. Deploy with npm run deploy:local (not deploy:local:demo).`,
+      )
+    }
+  }
+
   async submit(input: SignedAction): Promise<{ entryId: string }> {
     const parsed = signedActionSchema.safeParse(input)
     if (!parsed.success) throw new LedgerRejection('malformed', parsed.error.message)
@@ -174,12 +222,15 @@ export class ChainLedger implements Ledger, GenesisWriter {
 
   async reset(): Promise<void> {
     if (!this.snapshotId) {
-      throw new Error(
+      throw new LedgerResetUnavailable(
         'The chain ledger cannot be reset without a fresh deployment. Restart the node, run npm run deploy:local and reset the backend again.',
       )
     }
     await this.evm({ method: 'evm_revert', params: [this.snapshotId] })
     this.snapshotId = null
+    // The revert reuses block numbers and drops transactions, so cached lookups are stale.
+    this.blockTimes.clear()
+    this.transactions.clear()
   }
 
   async readEvents(
