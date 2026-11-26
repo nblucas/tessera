@@ -2,6 +2,7 @@
 import type { Address } from 'viem'
 import {
   bigint,
+  boolean,
   foreignKey,
   integer,
   jsonb,
@@ -107,7 +108,16 @@ export const batchNames = appSchema.table(
   ],
 )
 
-export type OrderStatus = 'pending_payment' | 'paid' | 'issued' | 'failed' | 'refunded'
+export type OrderStatus =
+  | 'pending_payment'
+  | 'paid'
+  | 'issued'
+  | 'failed'
+  | 'refunded'
+  // The bank reversed the payment after the ticket was issued (devolução or MED).
+  | 'reversed'
+
+export type OrderKind = 'ticket' | 'resale'
 
 // An open order (pending payment and not expired, or paid and not yet issued) holds one
 // ticket of its batch: that is the reservation.
@@ -129,8 +139,43 @@ export const orders = appSchema.table('orders', {
   failureReason: text('failure_reason'),
   // Roadmap (sellers): who sold this ticket.
   sellerId: text('seller_id'),
+  kind: text('kind').$type<OrderKind>().notNull().default('ticket'),
+  // Resale only: the listed ticket being bought, and the reseller's Pix payout.
+  listedTicketId: text('listed_ticket_id'),
+  payoutCents: bigint('payout_cents', { mode: 'number' }),
+  payoutAt: at('payout_at'),
+  // The Pix end-to-end id from the bank, and its SHA-256: the payment reference on the ledger.
+  e2eid: text('e2eid'),
+  paymentRef: text('payment_ref').unique(),
+  // What the bank actually credited; differs from the price only for a wrong-amount payment.
+  paidCents: bigint('paid_cents', { mode: 'number' }),
+  // Demo only: makes the oracle treat the settlement as failed, to show the refund path.
+  simulateSettlementFailure: boolean('simulate_settlement_failure').notNull().default(false),
   paidAt: at('paid_at'),
+  reversedAt: at('reversed_at'),
   createdAt: createdAt(),
+})
+
+export type PaymentEventOutcome =
+  | 'accepted'
+  | 'duplicate'
+  | 'wrong_amount'
+  | 'unknown_charge'
+  | 'reversal'
+  | 'own_refund'
+
+// Every Pix notification the backend received, including duplicates it ignored, so the
+// handling of each callback can be shown and audited.
+export const paymentEvents = appSchema.table('payment_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  association: text('association').notNull(),
+  txid: text('txid').notNull(),
+  e2eid: text('e2eid'),
+  amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+  outcome: text('outcome').$type<PaymentEventOutcome>().notNull(),
+  orderId: uuid('order_id'),
+  detail: text('detail'),
+  receivedAt: createdAt(),
 })
 
 export const receipts = appSchema.table('receipts', {

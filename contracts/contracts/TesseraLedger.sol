@@ -47,6 +47,7 @@ contract TesseraLedger is EIP712 {
         string batchId;
         uint256 priceCents;
         uint256 quantity;
+        uint256 resaleCapPercent;
     }
 
     struct BatchRemovedMessage {
@@ -69,6 +70,79 @@ contract TesseraLedger is EIP712 {
         address owner;
         uint256 priceCents;
         string orderRef;
+        bytes32 paymentRef;
+    }
+
+    struct PaymentRefundedMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        bytes32 paymentRef;
+        uint256 amountCents;
+        string orderRef;
+        string reason;
+    }
+
+    struct PaymentReversedMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        bytes32 paymentRef;
+        string ticketId;
+        uint256 amountCents;
+    }
+
+    struct TicketListedMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        string ticketId;
+        uint256 priceCents;
+    }
+
+    struct ListingCancelledMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        string ticketId;
+    }
+
+    struct ResaleSettledMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        bytes32 paymentRef;
+        string listedTicketId;
+        string ticketId;
+        address owner;
+        uint256 priceCents;
+        uint256 royaltyCents;
+        uint256 platformFeeCents;
+        uint256 payoutCents;
+        string orderRef;
+    }
+
+    struct OracleChangeProposedMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        string proposalId;
+        address newOracle;
+    }
+
+    // Used for OracleChangeApproved and OracleChangeCancelled, which have the same fields.
+    struct OracleChangeMessage {
+        address actor;
+        uint256 nonce;
+        uint256 deadline;
+        string association;
+        string proposalId;
     }
 
     struct ExpenseProposedMessage {
@@ -107,11 +181,11 @@ contract TesseraLedger is EIP712 {
         );
     bytes32 private constant BATCH_CREATED_TYPEHASH =
         keccak256(
-            "BatchCreated(address actor,uint256 nonce,uint256 deadline,string association,string eventId,string batchId,uint256 priceCents,uint256 quantity)"
+            "BatchCreated(address actor,uint256 nonce,uint256 deadline,string association,string eventId,string batchId,uint256 priceCents,uint256 quantity,uint256 resaleCapPercent)"
         );
     bytes32 private constant BATCH_UPDATED_TYPEHASH =
         keccak256(
-            "BatchUpdated(address actor,uint256 nonce,uint256 deadline,string association,string eventId,string batchId,uint256 priceCents,uint256 quantity)"
+            "BatchUpdated(address actor,uint256 nonce,uint256 deadline,string association,string eventId,string batchId,uint256 priceCents,uint256 quantity,uint256 resaleCapPercent)"
         );
     bytes32 private constant BATCH_REMOVED_TYPEHASH =
         keccak256(
@@ -119,7 +193,7 @@ contract TesseraLedger is EIP712 {
         );
     bytes32 private constant TICKET_ISSUED_TYPEHASH =
         keccak256(
-            "TicketIssued(address actor,uint256 nonce,uint256 deadline,string association,string ticketId,string eventId,string batchId,address owner,uint256 priceCents,string orderRef)"
+            "TicketIssued(address actor,uint256 nonce,uint256 deadline,string association,string ticketId,string eventId,string batchId,address owner,uint256 priceCents,string orderRef,bytes32 paymentRef)"
         );
     bytes32 private constant EXPENSE_PROPOSED_TYPEHASH =
         keccak256(
@@ -129,6 +203,38 @@ contract TesseraLedger is EIP712 {
         keccak256(
             "ExpenseVoted(address actor,uint256 nonce,uint256 deadline,string association,string expenseId,bool approve)"
         );
+
+    bytes32 private constant PAYMENT_REFUNDED_TYPEHASH =
+        keccak256(
+            "PaymentRefunded(address actor,uint256 nonce,uint256 deadline,string association,bytes32 paymentRef,uint256 amountCents,string orderRef,string reason)"
+        );
+    bytes32 private constant PAYMENT_REVERSED_TYPEHASH =
+        keccak256(
+            "PaymentReversed(address actor,uint256 nonce,uint256 deadline,string association,bytes32 paymentRef,string ticketId,uint256 amountCents)"
+        );
+    bytes32 private constant TICKET_LISTED_TYPEHASH =
+        keccak256(
+            "TicketListed(address actor,uint256 nonce,uint256 deadline,string association,string ticketId,uint256 priceCents)"
+        );
+    bytes32 private constant LISTING_CANCELLED_TYPEHASH =
+        keccak256("ListingCancelled(address actor,uint256 nonce,uint256 deadline,string association,string ticketId)");
+    bytes32 private constant RESALE_SETTLED_TYPEHASH =
+        keccak256(
+            "ResaleSettled(address actor,uint256 nonce,uint256 deadline,string association,bytes32 paymentRef,string listedTicketId,string ticketId,address owner,uint256 priceCents,uint256 royaltyCents,uint256 platformFeeCents,uint256 payoutCents,string orderRef)"
+        );
+    bytes32 private constant ORACLE_CHANGE_PROPOSED_TYPEHASH =
+        keccak256(
+            "OracleChangeProposed(address actor,uint256 nonce,uint256 deadline,string association,string proposalId,address newOracle)"
+        );
+    bytes32 private constant ORACLE_CHANGE_APPROVED_TYPEHASH =
+        keccak256("OracleChangeApproved(address actor,uint256 nonce,uint256 deadline,string association,string proposalId)");
+    bytes32 private constant ORACLE_CHANGE_CANCELLED_TYPEHASH =
+        keccak256("OracleChangeCancelled(address actor,uint256 nonce,uint256 deadline,string association,string proposalId)");
+
+    // Resale split, the same as RESALE_ROYALTY_PERCENT and RESALE_PLATFORM_FEE_PERCENT in
+    // shared/src/records.ts.
+    uint256 public constant RESALE_ROYALTY_PERCENT = 10;
+    uint256 public constant RESALE_PLATFORM_FEE_PERCENT = 5;
 
     // The backend and the app read amounts as JavaScript numbers, which lose precision above
     // this value.
@@ -151,6 +257,41 @@ contract TesseraLedger is EIP712 {
         uint256 priceCents;
         uint256 quantity;
         uint256 sold;
+        uint256 resaleCapPercent;
+    }
+
+    // Valid: can enter or be listed. Listed: offered for resale. Resold: replaced by the
+    // buyer's ticket. Revoked: its payment was reversed.
+    enum TicketStatus {
+        None,
+        Valid,
+        Listed,
+        Resold,
+        Revoked
+    }
+
+    struct Ticket {
+        TicketStatus status;
+        bytes32 batch;
+        address owner;
+        bytes32 paymentRef;
+        uint256 listingPriceCents;
+    }
+
+    // What became of each payment the oracle reported. One payment, one outcome.
+    enum PaymentOutcome {
+        None,
+        Ticket,
+        Refunded,
+        Reversed
+    }
+
+    struct OracleChange {
+        string id;
+        address proposer;
+        address newOracle;
+        uint256 approvalCount;
+        bool open;
     }
 
     enum ExpenseStatus {
@@ -174,8 +315,9 @@ contract TesseraLedger is EIP712 {
     // May write the genesis records, and only before any signed action. With the backend this
     // is the relayer, so the backend seed writes the genesis through its ledger adapter.
     address public immutable genesisAuthority;
-    // The payment oracle. The only address that may issue tickets.
-    address public immutable oracle;
+    // The payment oracle: the one address trusted to report off-chain Pix payments (tickets,
+    // refunds, reversals and resales). Set at deploy time; a board majority can replace it.
+    address public oracle;
     string public association;
     bytes32 private immutable associationHash;
 
@@ -198,7 +340,13 @@ contract TesseraLedger is EIP712 {
     // Keyed by batchKey(eventId, batchId).
     mapping(bytes32 => Batch) private batches;
     // Keyed by keccak256(ticketId).
-    mapping(bytes32 => bool) private issuedTickets;
+    mapping(bytes32 => Ticket) private tickets;
+    // Keyed by the payment reference: SHA-256 of the Pix end-to-end id.
+    mapping(bytes32 => PaymentOutcome) public payments;
+
+    OracleChange private oracleChange;
+    uint256 private oracleChangeRound;
+    mapping(uint256 round => mapping(address => bool)) private approvedOracleChange;
 
     // Keyed by keccak256(expenseId).
     mapping(bytes32 => Expense) private expenses;
@@ -218,8 +366,22 @@ contract TesseraLedger is EIP712 {
     event HandoverProposed(address indexed actor, string handoverId, address[] members);
     event HandoverApproved(address indexed actor, string handoverId);
     event HandoverCancelled(address indexed actor, string handoverId);
-    event BatchCreated(address indexed actor, string eventId, string batchId, uint256 priceCents, uint256 quantity);
-    event BatchUpdated(address indexed actor, string eventId, string batchId, uint256 priceCents, uint256 quantity);
+    event BatchCreated(
+        address indexed actor,
+        string eventId,
+        string batchId,
+        uint256 priceCents,
+        uint256 quantity,
+        uint256 resaleCapPercent
+    );
+    event BatchUpdated(
+        address indexed actor,
+        string eventId,
+        string batchId,
+        uint256 priceCents,
+        uint256 quantity,
+        uint256 resaleCapPercent
+    );
     event BatchRemoved(address indexed actor, string eventId, string batchId);
     event OpeningSalesRecorded(string eventId, string batchId, uint256 count, uint256 amountCents);
     event TicketIssued(
@@ -229,8 +391,28 @@ contract TesseraLedger is EIP712 {
         string batchId,
         address indexed owner,
         uint256 priceCents,
+        string orderRef,
+        bytes32 paymentRef
+    );
+    event PaymentRefunded(address indexed actor, bytes32 paymentRef, uint256 amountCents, string orderRef, string reason);
+    event PaymentReversed(address indexed actor, bytes32 paymentRef, string ticketId, uint256 amountCents);
+    event TicketListed(address indexed actor, string ticketId, uint256 priceCents);
+    event ListingCancelled(address indexed actor, string ticketId);
+    event ResaleSettled(
+        address indexed actor,
+        bytes32 paymentRef,
+        string listedTicketId,
+        string ticketId,
+        address indexed owner,
+        uint256 priceCents,
+        uint256 royaltyCents,
+        uint256 platformFeeCents,
+        uint256 payoutCents,
         string orderRef
     );
+    event OracleChangeProposed(address indexed actor, string proposalId, address newOracle);
+    event OracleChangeApproved(address indexed actor, string proposalId);
+    event OracleChangeCancelled(address indexed actor, string proposalId);
     event ExpenseProposed(
         address indexed actor,
         string expenseId,
@@ -245,6 +427,8 @@ contract TesseraLedger is EIP712 {
     event TermStarted(uint256 indexed term, address[] members);
     // Emitted when an expense leaves Pending, after a vote or a handover recount.
     event ExpenseDecided(string expenseId, ExpenseStatus status);
+    // Emitted when a board majority puts a new oracle in office.
+    event OracleChanged(address newOracle);
 
     // ---------------------------------------------------------------------------------------
     // Errors
@@ -281,6 +465,25 @@ contract TesseraLedger is EIP712 {
     error UnknownExpense();
     error ExpenseNotPending();
     error AlreadyVoted();
+    error InvalidResaleCap();
+    error OnlyOracleReports();
+    error InvalidPaymentRef();
+    error PaymentAlreadyReported();
+    error PaymentAlreadyReversed();
+    error UnknownTicket();
+    error PaymentDoesNotMatchTicket();
+    error TicketNotValid();
+    error TicketNotValidForResale();
+    error OnlyOwnerLists();
+    error OnlyOwnerCancels();
+    error AboveResaleCap(uint256 maxPriceCents);
+    error TicketNotListed();
+    error OwnListing();
+    error ListedPriceMismatch();
+    error ResaleSplitMismatch();
+    error OracleChangeAlreadyOpen();
+    error AlreadyOracle();
+    error NoOpenOracleChangeWithThisId();
 
     constructor(
         string memory association_,
@@ -310,10 +513,11 @@ contract TesseraLedger is EIP712 {
         string calldata eventId,
         string calldata batchId,
         uint256 priceCents,
-        uint256 quantity
+        uint256 quantity,
+        uint256 resaleCapPercent
     ) external {
         _requireGenesis();
-        _createBatch(address(0), eventId, batchId, priceCents, quantity);
+        _createBatch(address(0), eventId, batchId, priceCents, quantity, resaleCapPercent);
     }
 
     // Sales made before the app existed, labelled as imported.
@@ -390,7 +594,14 @@ contract TesseraLedger is EIP712 {
     function createBatch(BatchMessage calldata message, bytes calldata signature) external {
         _verify(_hashBatch(BATCH_CREATED_TYPEHASH, message), message.actor, message.nonce, message.deadline, message.association, signature);
         _requireBoardMember(message.actor);
-        _createBatch(message.actor, message.eventId, message.batchId, message.priceCents, message.quantity);
+        _createBatch(
+            message.actor,
+            message.eventId,
+            message.batchId,
+            message.priceCents,
+            message.quantity,
+            message.resaleCapPercent
+        );
     }
 
     function updateBatch(BatchMessage calldata message, bytes calldata signature) external {
@@ -398,11 +609,19 @@ contract TesseraLedger is EIP712 {
         _requireBoardMember(message.actor);
         Batch storage batch = _existingBatch(message.eventId, message.batchId);
         if (batch.sold > 0) revert BatchFrozen();
-        _checkBatchFields(message.priceCents, message.quantity);
+        _checkBatchFields(message.priceCents, message.quantity, message.resaleCapPercent);
 
         batch.priceCents = message.priceCents;
         batch.quantity = message.quantity;
-        emit BatchUpdated(message.actor, message.eventId, message.batchId, message.priceCents, message.quantity);
+        batch.resaleCapPercent = message.resaleCapPercent;
+        emit BatchUpdated(
+            message.actor,
+            message.eventId,
+            message.batchId,
+            message.priceCents,
+            message.quantity,
+            message.resaleCapPercent
+        );
     }
 
     function removeBatch(BatchRemovedMessage calldata message, bytes calldata signature) external {
@@ -425,12 +644,20 @@ contract TesseraLedger is EIP712 {
         _verify(_hashTicketIssued(message), message.actor, message.nonce, message.deadline, message.association, signature);
         if (message.actor != oracle) revert OnlyOracle();
         bytes32 ticketKey = keccak256(bytes(message.ticketId));
-        if (issuedTickets[ticketKey]) revert TicketAlreadyIssued();
+        if (tickets[ticketKey].status != TicketStatus.None) revert TicketAlreadyIssued();
+        _requireNewPayment(message.paymentRef);
         Batch storage batch = _existingBatch(message.eventId, message.batchId);
         if (batch.sold >= batch.quantity) revert BatchSoldOut();
         if (message.priceCents != batch.priceCents) revert PriceMismatch();
 
-        issuedTickets[ticketKey] = true;
+        tickets[ticketKey] = Ticket({
+            status: TicketStatus.Valid,
+            batch: batchKey(message.eventId, message.batchId),
+            owner: message.owner,
+            paymentRef: message.paymentRef,
+            listingPriceCents: 0
+        });
+        payments[message.paymentRef] = PaymentOutcome.Ticket;
         batch.sold += 1;
         emit TicketIssued(
             message.actor,
@@ -439,8 +666,144 @@ contract TesseraLedger is EIP712 {
             message.batchId,
             message.owner,
             message.priceCents,
-            message.orderRef
+            message.orderRef,
+            message.paymentRef
         );
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Payment outcomes (payment oracle only)
+    // ---------------------------------------------------------------------------------------
+    // Every confirmed Pix payment ends here as exactly one ticket, one resale or one refund,
+    // and a later bank reversal is recorded against the ticket it paid for.
+
+    function refundPayment(PaymentRefundedMessage calldata message, bytes calldata signature) external {
+        _verify(_hashPaymentRefunded(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        if (message.actor != oracle) revert OnlyOracleReports();
+        if (message.amountCents == 0 || message.amountCents > MAX_SAFE_INTEGER) revert InvalidAmount();
+        _requireNewPayment(message.paymentRef);
+
+        payments[message.paymentRef] = PaymentOutcome.Refunded;
+        emit PaymentRefunded(message.actor, message.paymentRef, message.amountCents, message.orderRef, message.reason);
+    }
+
+    function reversePayment(PaymentReversedMessage calldata message, bytes calldata signature) external {
+        _verify(_hashPaymentReversed(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        if (message.actor != oracle) revert OnlyOracleReports();
+        Ticket storage ticket = tickets[keccak256(bytes(message.ticketId))];
+        if (ticket.status == TicketStatus.None) revert UnknownTicket();
+        if (ticket.paymentRef != message.paymentRef) revert PaymentDoesNotMatchTicket();
+        if (payments[message.paymentRef] == PaymentOutcome.Reversed) revert PaymentAlreadyReversed();
+        if (ticket.status == TicketStatus.Revoked) revert TicketNotValid();
+        if (message.amountCents == 0 || message.amountCents > MAX_SAFE_INTEGER) revert InvalidAmount();
+
+        payments[message.paymentRef] = PaymentOutcome.Reversed;
+        // A resold ticket stays with its buyer, who paid in good faith: the reversal is only an
+        // income loss. Otherwise the ticket is revoked and its place goes back on sale.
+        if (ticket.status != TicketStatus.Resold) {
+            ticket.status = TicketStatus.Revoked;
+            ticket.listingPriceCents = 0;
+            batches[ticket.batch].sold -= 1;
+        }
+        emit PaymentReversed(message.actor, message.paymentRef, message.ticketId, message.amountCents);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Resale
+    // ---------------------------------------------------------------------------------------
+
+    function listTicket(TicketListedMessage calldata message, bytes calldata signature) external {
+        _verify(_hashTicketListed(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        Ticket storage ticket = tickets[keccak256(bytes(message.ticketId))];
+        if (ticket.status == TicketStatus.None) revert UnknownTicket();
+        if (ticket.owner != message.actor) revert OnlyOwnerLists();
+        if (ticket.status != TicketStatus.Valid) revert TicketNotValidForResale();
+        if (message.priceCents == 0 || message.priceCents > MAX_SAFE_INTEGER) revert InvalidPrice();
+        Batch storage batch = batches[ticket.batch];
+        uint256 cap = (batch.priceCents * batch.resaleCapPercent) / 100;
+        if (message.priceCents > cap) revert AboveResaleCap(cap);
+
+        ticket.status = TicketStatus.Listed;
+        ticket.listingPriceCents = message.priceCents;
+        emit TicketListed(message.actor, message.ticketId, message.priceCents);
+    }
+
+    function cancelListing(ListingCancelledMessage calldata message, bytes calldata signature) external {
+        _verify(_hashListingCancelled(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        Ticket storage ticket = tickets[keccak256(bytes(message.ticketId))];
+        if (ticket.status == TicketStatus.None) revert UnknownTicket();
+        if (ticket.owner != message.actor) revert OnlyOwnerCancels();
+        if (ticket.status != TicketStatus.Listed) revert TicketNotListed();
+
+        ticket.status = TicketStatus.Valid;
+        ticket.listingPriceCents = 0;
+        emit ListingCancelled(message.actor, message.ticketId);
+    }
+
+    // A paid resale: the listed ticket is cancelled and a new one issued to the buyer, at the
+    // listed price, with the fixed split between the association, the platform and the seller.
+    function settleResale(ResaleSettledMessage calldata message, bytes calldata signature) external {
+        _verify(_hashResaleSettled(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        if (message.actor != oracle) revert OnlyOracleReports();
+        Ticket storage listed = tickets[keccak256(bytes(message.listedTicketId))];
+        if (listed.status != TicketStatus.Listed) revert TicketNotListed();
+        if (listed.owner == message.owner) revert OwnListing();
+        bytes32 newKey = keccak256(bytes(message.ticketId));
+        if (tickets[newKey].status != TicketStatus.None) revert TicketAlreadyIssued();
+        if (message.priceCents != listed.listingPriceCents) revert ListedPriceMismatch();
+        _checkResaleSplit(message);
+        _requireNewPayment(message.paymentRef);
+
+        listed.status = TicketStatus.Resold;
+        listed.listingPriceCents = 0;
+        tickets[newKey] = Ticket({
+            status: TicketStatus.Valid,
+            batch: listed.batch,
+            owner: message.owner,
+            paymentRef: message.paymentRef,
+            listingPriceCents: 0
+        });
+        payments[message.paymentRef] = PaymentOutcome.Ticket;
+        _emitResaleSettled(message);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Replacing the payment oracle (board majority, like a handover)
+    // ---------------------------------------------------------------------------------------
+
+    function proposeOracleChange(OracleChangeProposedMessage calldata message, bytes calldata signature) external {
+        _verify(_hashOracleChangeProposed(message), message.actor, message.nonce, message.deadline, message.association, signature);
+        _requireBoardMember(message.actor);
+        if (oracleChange.open) revert OracleChangeAlreadyOpen();
+        if (message.newOracle == oracle) revert AlreadyOracle();
+
+        oracleChangeRound += 1;
+        oracleChange.id = message.proposalId;
+        oracleChange.proposer = message.actor;
+        oracleChange.newOracle = message.newOracle;
+        oracleChange.approvalCount = 0;
+        oracleChange.open = true;
+        emit OracleChangeProposed(message.actor, message.proposalId, message.newOracle);
+        _approveOracleChange(message.actor);
+    }
+
+    function approveOracleChange(OracleChangeMessage calldata message, bytes calldata signature) external {
+        _verify(_hashOracleChange(ORACLE_CHANGE_APPROVED_TYPEHASH, message), message.actor, message.nonce, message.deadline, message.association, signature);
+        _requireBoardMember(message.actor);
+        _requireOpenOracleChange(message.proposalId);
+        if (approvedOracleChange[oracleChangeRound][message.actor]) revert AlreadyApproved();
+
+        emit OracleChangeApproved(message.actor, message.proposalId);
+        _approveOracleChange(message.actor);
+    }
+
+    function cancelOracleChange(OracleChangeMessage calldata message, bytes calldata signature) external {
+        _verify(_hashOracleChange(ORACLE_CHANGE_CANCELLED_TYPEHASH, message), message.actor, message.nonce, message.deadline, message.association, signature);
+        _requireOpenOracleChange(message.proposalId);
+        if (message.actor != oracleChange.proposer) revert OnlyProposerCanCancel();
+
+        delete oracleChange;
+        emit OracleChangeCancelled(message.actor, message.proposalId);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -518,7 +881,24 @@ contract TesseraLedger is EIP712 {
     }
 
     function isTicketIssued(string calldata ticketId) external view returns (bool) {
-        return issuedTickets[keccak256(bytes(ticketId))];
+        return tickets[keccak256(bytes(ticketId))].status != TicketStatus.None;
+    }
+
+    function getTicket(string calldata ticketId)
+        external
+        view
+        returns (TicketStatus status, address owner, bytes32 paymentRef, uint256 listingPriceCents)
+    {
+        Ticket storage ticket = tickets[keccak256(bytes(ticketId))];
+        return (ticket.status, ticket.owner, ticket.paymentRef, ticket.listingPriceCents);
+    }
+
+    function openOracleChange()
+        external
+        view
+        returns (bool open, string memory id, address proposer, address newOracle, uint256 approvalCount)
+    {
+        return (oracleChange.open, oracleChange.id, oracleChange.proposer, oracleChange.newOracle, oracleChange.approvalCount);
     }
 
     function getExpense(string calldata expenseId)
@@ -581,6 +961,51 @@ contract TesseraLedger is EIP712 {
         if (genesisClosed) revert GenesisClosed();
     }
 
+    function _requireNewPayment(bytes32 paymentRef) private view {
+        if (paymentRef == bytes32(0)) revert InvalidPaymentRef();
+        if (payments[paymentRef] != PaymentOutcome.None) revert PaymentAlreadyReported();
+    }
+
+    function _requireOpenOracleChange(string calldata proposalId) private view {
+        if (!oracleChange.open || keccak256(bytes(proposalId)) != keccak256(bytes(oracleChange.id))) {
+            revert NoOpenOracleChangeWithThisId();
+        }
+    }
+
+    // Rounds half up, like Math.round in resaleSplit (shared/src/records.ts).
+    function _checkResaleSplit(ResaleSettledMessage calldata m) private pure {
+        uint256 royalty = (m.priceCents * RESALE_ROYALTY_PERCENT + 50) / 100;
+        uint256 fee = (m.priceCents * RESALE_PLATFORM_FEE_PERCENT + 50) / 100;
+        if (m.royaltyCents != royalty || m.platformFeeCents != fee || m.payoutCents != m.priceCents - royalty - fee) {
+            revert ResaleSplitMismatch();
+        }
+    }
+
+    function _emitResaleSettled(ResaleSettledMessage calldata m) private {
+        emit ResaleSettled(
+            m.actor,
+            m.paymentRef,
+            m.listedTicketId,
+            m.ticketId,
+            m.owner,
+            m.priceCents,
+            m.royaltyCents,
+            m.platformFeeCents,
+            m.payoutCents,
+            m.orderRef
+        );
+    }
+
+    function _approveOracleChange(address director) private {
+        approvedOracleChange[oracleChangeRound][director] = true;
+        oracleChange.approvalCount += 1;
+        if (oracleChange.approvalCount >= majorityOf(boards[term].length)) {
+            oracle = oracleChange.newOracle;
+            delete oracleChange;
+            emit OracleChanged(oracle);
+        }
+    }
+
     function _requireBoardMember(address actor) private view {
         if (!isBoardMember(actor)) revert NotBoardMember(actor);
     }
@@ -600,9 +1025,10 @@ contract TesseraLedger is EIP712 {
         }
     }
 
-    function _checkBatchFields(uint256 priceCents, uint256 quantity) private pure {
+    function _checkBatchFields(uint256 priceCents, uint256 quantity, uint256 resaleCapPercent) private pure {
         if (priceCents == 0 || priceCents > MAX_SAFE_INTEGER) revert InvalidPrice();
         if (quantity == 0 || quantity > MAX_SAFE_INTEGER) revert InvalidQuantity();
+        if (resaleCapPercent < 100 || resaleCapPercent > MAX_SAFE_INTEGER) revert InvalidResaleCap();
     }
 
     // Same list as EXPENSE_CATEGORIES in shared/src/records.ts.
@@ -700,14 +1126,21 @@ contract TesseraLedger is EIP712 {
         string calldata eventId,
         string calldata batchId,
         uint256 priceCents,
-        uint256 quantity
+        uint256 quantity,
+        uint256 resaleCapPercent
     ) private {
         bytes32 key = batchKey(eventId, batchId);
         if (batches[key].exists) revert BatchAlreadyExists();
-        _checkBatchFields(priceCents, quantity);
+        _checkBatchFields(priceCents, quantity, resaleCapPercent);
 
-        batches[key] = Batch({exists: true, priceCents: priceCents, quantity: quantity, sold: 0});
-        emit BatchCreated(actor, eventId, batchId, priceCents, quantity);
+        batches[key] = Batch({
+            exists: true,
+            priceCents: priceCents,
+            quantity: quantity,
+            sold: 0,
+            resaleCapPercent: resaleCapPercent
+        });
+        emit BatchCreated(actor, eventId, batchId, priceCents, quantity, resaleCapPercent);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -765,7 +1198,8 @@ contract TesseraLedger is EIP712 {
                 keccak256(bytes(m.eventId)),
                 keccak256(bytes(m.batchId)),
                 m.priceCents,
-                m.quantity
+                m.quantity,
+                m.resaleCapPercent
             )
         );
     }
@@ -797,7 +1231,116 @@ contract TesseraLedger is EIP712 {
                 keccak256(bytes(m.batchId)),
                 m.owner,
                 m.priceCents,
-                keccak256(bytes(m.orderRef))
+                keccak256(bytes(m.orderRef)),
+                m.paymentRef
+            )
+        );
+    }
+
+    function _hashPaymentRefunded(PaymentRefundedMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                PAYMENT_REFUNDED_TYPEHASH,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                m.paymentRef,
+                m.amountCents,
+                keccak256(bytes(m.orderRef)),
+                keccak256(bytes(m.reason))
+            )
+        );
+    }
+
+    function _hashPaymentReversed(PaymentReversedMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                PAYMENT_REVERSED_TYPEHASH,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                m.paymentRef,
+                keccak256(bytes(m.ticketId)),
+                m.amountCents
+            )
+        );
+    }
+
+    function _hashTicketListed(TicketListedMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                TICKET_LISTED_TYPEHASH,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                keccak256(bytes(m.ticketId)),
+                m.priceCents
+            )
+        );
+    }
+
+    function _hashListingCancelled(ListingCancelledMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                LISTING_CANCELLED_TYPEHASH,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                keccak256(bytes(m.ticketId))
+            )
+        );
+    }
+
+    // Split in two encodes to stay under Solidity's stack limit.
+    function _hashResaleSettled(ResaleSettledMessage calldata m) private pure returns (bytes32) {
+        bytes memory head = abi.encode(
+            RESALE_SETTLED_TYPEHASH,
+            m.actor,
+            m.nonce,
+            m.deadline,
+            keccak256(bytes(m.association)),
+            m.paymentRef,
+            keccak256(bytes(m.listedTicketId)),
+            keccak256(bytes(m.ticketId))
+        );
+        bytes memory tail = abi.encode(
+            m.owner,
+            m.priceCents,
+            m.royaltyCents,
+            m.platformFeeCents,
+            m.payoutCents,
+            keccak256(bytes(m.orderRef))
+        );
+        return keccak256(bytes.concat(head, tail));
+    }
+
+    function _hashOracleChangeProposed(OracleChangeProposedMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                ORACLE_CHANGE_PROPOSED_TYPEHASH,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                keccak256(bytes(m.proposalId)),
+                m.newOracle
+            )
+        );
+    }
+
+    function _hashOracleChange(bytes32 typehash, OracleChangeMessage calldata m) private pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                typehash,
+                m.actor,
+                m.nonce,
+                m.deadline,
+                keccak256(bytes(m.association)),
+                keccak256(bytes(m.proposalId))
             )
         );
     }

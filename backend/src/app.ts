@@ -18,7 +18,9 @@ import { eventRoutes } from './http/routes/events'
 import { expenseRoutes } from './http/routes/expenses'
 import { meRoutes } from './http/routes/me'
 import { orderRoutes } from './http/routes/orders'
+import { oracleRoutes } from './http/routes/oracle'
 import { publicRoutes } from './http/routes/public'
+import { resaleRoutes } from './http/routes/resale'
 import { LedgerRejection, LedgerResetUnavailable } from './ledger/types'
 
 export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
@@ -77,6 +79,8 @@ export function buildApp(deps: Deps, options: { logger?: boolean } = {}) {
     expenseRoutes(api, deps)
     boardRoutes(api, deps)
     publicRoutes(api, deps)
+    resaleRoutes(api, deps)
+    oracleRoutes(api, deps)
     api.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger())
   })
 

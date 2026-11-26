@@ -1,7 +1,10 @@
 import { PgBoss } from 'pg-boss'
 
-export type JobName = 'issue-ticket'
-export type JobData = { 'issue-ticket': { orderId: string } }
+export type JobName = 'issue-ticket' | 'reverse-payment'
+export type JobData = {
+  'issue-ticket': { orderId: string }
+  'reverse-payment': { orderId: string; amountCents: number }
+}
 export type JobHandler<N extends JobName> = (data: JobData[N]) => Promise<void>
 
 export interface Jobs {

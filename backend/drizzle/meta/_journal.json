@@ -36,6 +36,13 @@
       "when": 1795270705557,
       "tag": "0004_multi_association",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795698694087,
+      "tag": "0005_payments_and_resale",
+      "breakpoints": true
     }
   ]
 }

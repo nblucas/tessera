@@ -1,9 +1,10 @@
 import {
   signedActionSchema,
-  type ActionMessage,
+  typedDataFor,
   type GenesisRecord,
   type LedgerRecord,
   type SignedAction,
+  type SignedKind,
 } from '@tessera/shared'
 import {
   createPublicClient,
@@ -87,7 +88,52 @@ const RULE_MESSAGES: Record<string, string> = {
   UnknownExpense: 'unknown expense',
   ExpenseNotPending: 'expense is not pending',
   AlreadyVoted: 'already voted',
+  InvalidResaleCap: 'resale cap must be a whole percentage of at least 100',
+  OnlyOracleReports: 'only the oracle reports payments',
+  InvalidPaymentRef: 'payment reference must be a SHA-256 hex',
+  PaymentAlreadyReported: 'payment already reported',
+  PaymentAlreadyReversed: 'payment already reversed',
+  UnknownTicket: 'unknown ticket',
+  PaymentDoesNotMatchTicket: 'payment does not match the ticket',
+  TicketNotValid: 'ticket is not valid',
+  TicketNotValidForResale: 'ticket is not valid for resale',
+  OnlyOwnerLists: 'only the owner lists a ticket',
+  OnlyOwnerCancels: 'only the owner cancels a listing',
+  TicketNotListed: 'ticket is not listed',
+  OwnListing: 'nobody buys their own listing',
+  ListedPriceMismatch: 'price does not match the listed price',
+  ResaleSplitMismatch: 'resale split does not match the fixed percentages',
+  OracleChangeAlreadyOpen: 'oracle change already open',
+  AlreadyOracle: 'this is already the oracle',
+  NoOpenOracleChangeWithThisId: 'no open oracle change with this id',
 }
+
+// The contract function for each signed record. Every one takes (message, signature).
+const FUNCTION_FOR_KIND: Record<SignedKind, string> = {
+  BatchCreated: 'createBatch',
+  BatchUpdated: 'updateBatch',
+  BatchRemoved: 'removeBatch',
+  HandoverProposed: 'proposeHandover',
+  HandoverApproved: 'approveHandover',
+  HandoverCancelled: 'cancelHandover',
+  TicketIssued: 'issueTicket',
+  ExpenseProposed: 'proposeExpense',
+  ExpenseVoted: 'voteExpense',
+  PaymentRefunded: 'refundPayment',
+  PaymentReversed: 'reversePayment',
+  TicketListed: 'listTicket',
+  ListingCancelled: 'cancelListing',
+  ResaleSettled: 'settleResale',
+  OracleChangeProposed: 'proposeOracleChange',
+  OracleChangeApproved: 'approveOracleChange',
+  OracleChangeCancelled: 'cancelOracleChange',
+}
+
+// Events that are conveniences for readers, not ledger records.
+const NOT_RECORDS = new Set(['TermStarted', 'ExpenseDecided', 'OracleChanged'])
+
+// bytes32 fields the backend keeps as plain hex without 0x.
+const HEX_FIELDS = new Set(['receiptSha256', 'paymentRef'])
 
 export type ChainLedgerOptions = {
   rpcUrl: string
@@ -204,6 +250,7 @@ export class ChainLedger implements Ledger, GenesisWriter {
             record.batchId,
             BigInt(record.priceCents),
             BigInt(record.quantity),
+            BigInt(record.resaleCapPercent),
           ])
           break
         case 'OpeningSalesRecorded':
@@ -246,7 +293,7 @@ export class ChainLedger implements Ledger, GenesisWriter {
     })) as unknown as DecodedLog[]
 
     const recordLogs = logs
-      .filter((log) => log.eventName !== 'TermStarted' && log.eventName !== 'ExpenseDecided')
+      .filter((log) => !NOT_RECORDS.has(log.eventName))
       .sort(compareLogs)
 
     const all: { log: DecodedLog; event: LedgerEvent }[] = []
@@ -265,109 +312,11 @@ export class ChainLedger implements Ledger, GenesisWriter {
     return { events: page, next: page.at(-1)?.cursor ?? fromCursor }
   }
 
+  // The message as the contract's struct: the EIP-712 values (uint256 as bigint, bytes32 with
+  // 0x), which is what the app signed.
   private async send(action: SignedAction): Promise<Hex> {
-    switch (action.kind) {
-      case 'BatchCreated': {
-        const message = action.message
-        return this.transact('createBatch', [
-          {
-            ...envelope(message),
-            eventId: message.eventId,
-            batchId: message.batchId,
-            priceCents: BigInt(message.priceCents),
-            quantity: BigInt(message.quantity),
-          },
-          action.signature,
-        ])
-      }
-      case 'BatchUpdated': {
-        const message = action.message
-        return this.transact('updateBatch', [
-          {
-            ...envelope(message),
-            eventId: message.eventId,
-            batchId: message.batchId,
-            priceCents: BigInt(message.priceCents),
-            quantity: BigInt(message.quantity),
-          },
-          action.signature,
-        ])
-      }
-      case 'BatchRemoved': {
-        const message = action.message
-        return this.transact('removeBatch', [
-          {
-            ...envelope(message),
-            eventId: message.eventId,
-            batchId: message.batchId,
-          },
-          action.signature,
-        ])
-      }
-      case 'HandoverProposed': {
-        const message = action.message
-        return this.transact('proposeHandover', [
-          {
-            ...envelope(message),
-            handoverId: message.handoverId,
-            members: message.members,
-          },
-          action.signature,
-        ])
-      }
-      case 'HandoverApproved': {
-        const message = action.message
-        return this.transact('approveHandover', [
-          { ...envelope(message), handoverId: message.handoverId },
-          action.signature,
-        ])
-      }
-      case 'HandoverCancelled': {
-        const message = action.message
-        return this.transact('cancelHandover', [
-          { ...envelope(message), handoverId: message.handoverId },
-          action.signature,
-        ])
-      }
-      case 'TicketIssued': {
-        const message = action.message
-        return this.transact('issueTicket', [
-          {
-            ...envelope(message),
-            ticketId: message.ticketId,
-            eventId: message.eventId,
-            batchId: message.batchId,
-            owner: message.owner,
-            priceCents: BigInt(message.priceCents),
-            orderRef: message.orderRef,
-          },
-          action.signature,
-        ])
-      }
-      case 'ExpenseProposed': {
-        const message = action.message
-        return this.transact('proposeExpense', [
-          {
-            ...envelope(message),
-            expenseId: message.expenseId,
-            amountCents: BigInt(message.amountCents),
-            category: message.category,
-            eventId: message.eventId,
-            receiptSha256: `0x${message.receiptSha256}` as Hex,
-          },
-          action.signature,
-        ])
-      }
-      case 'ExpenseVoted': {
-        const message = action.message
-        return this.transact('voteExpense', [
-          { ...envelope(message), expenseId: message.expenseId, approve: message.approve },
-          action.signature,
-        ])
-      }
-      default:
-        return assertNever(action)
-    }
+    const { message } = typedDataFor({ chainId: this.chain.id, verifyingContract: this.contract }, action.kind, action.message)
+    return this.transact(FUNCTION_FOR_KIND[action.kind], [message, action.signature])
   }
 
   private async transact(functionName: string, args: readonly unknown[]): Promise<Hex> {
@@ -492,15 +441,6 @@ export class ChainLedger implements Ledger, GenesisWriter {
   }
 }
 
-function envelope(message: ActionMessage) {
-  return {
-    actor: message.actor,
-    nonce: BigInt(message.nonce),
-    deadline: BigInt(message.deadline),
-    association: message.association,
-  }
-}
-
 function toRecord(log: DecodedLog): LedgerRecord {
   const args = log.args ?? {}
   const record: Record<string, unknown> = { kind: log.eventName }
@@ -516,7 +456,8 @@ function toRecord(log: DecodedLog): LedgerRecord {
 function convertField(key: string, value: unknown): unknown {
   if (key === 'owner') return getAddress(value as Address)
   if (key === 'members') return (value as Address[]).map((member) => getAddress(member))
-  if (key === 'receiptSha256') return (value as Hex).slice(2).toLowerCase()
+  if (HEX_FIELDS.has(key)) return (value as Hex).slice(2).toLowerCase()
+  if (key === 'newOracle') return getAddress(value as Address)
   if (typeof value === 'bigint') return Number(value)
   return value
 }

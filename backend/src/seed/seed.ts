@@ -58,6 +58,7 @@ export async function seed(deps: Pick<Deps, 'config' | 'db' | 'genesis' | 'index
         batchId: batch.id,
         priceCents: batch.priceCents,
         quantity: batch.quantity,
+        resaleCapPercent: event.resaleCapPercent,
       })
       if (batch.sold > 0) {
         records.push({

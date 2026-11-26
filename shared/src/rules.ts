@@ -2,7 +2,7 @@
 // contracts must implement the same ones (see rules.examples.ts for the shared test cases).
 import type { Address } from 'viem'
 import type { LedgerRecord } from './records'
-import { EXPENSE_CATEGORIES } from './records'
+import { EXPENSE_CATEGORIES, maxResalePrice, resaleSplit } from './records'
 
 export type ExpenseStatus = 'pending' | 'approved' | 'rejected'
 
@@ -24,6 +24,28 @@ export type BatchState = {
   priceCents: number
   quantity: number
   sold: number
+  resaleCapPercent: number
+}
+
+// valid: can enter or be listed; listed: offered for resale; resold: replaced by the buyer's
+// ticket; revoked: its payment was reversed.
+export type TicketStatus = 'valid' | 'listed' | 'resold' | 'revoked'
+
+export type TicketState = {
+  eventId: string
+  batchId: string
+  owner: Address
+  priceCents: number
+  paymentRef: string
+  status: TicketStatus
+  listingPriceCents: number | null
+}
+
+export type OracleChangeState = {
+  id: string
+  proposer: Address
+  newOracle: Address
+  approvals: Address[]
 }
 
 export type LedgerState = {
@@ -35,7 +57,12 @@ export type LedgerState = {
   // Keyed by batchKey(eventId, batchId).
   batches: Record<string, BatchState>
   expenses: Record<string, ExpenseState>
-  tickets: Record<string, true>
+  tickets: Record<string, TicketState>
+  // Payment references already reported, so one payment has exactly one outcome.
+  payments: Record<string, 'ticket' | 'refunded' | 'reversed'>
+  // Set once the board replaces the oracle given at deploy time.
+  oracle: Address | null
+  oracleChange: OracleChangeState | null
 }
 
 export const EMPTY_STATE: LedgerState = {
@@ -46,9 +73,17 @@ export const EMPTY_STATE: LedgerState = {
   batches: {},
   expenses: {},
   tickets: {},
+  payments: {},
+  oracle: null,
+  oracleChange: null,
 }
 
+// oracle: the payment oracle set at deploy time.
 export type RuleContext = { oracle: Address }
+
+export function currentOracle(state: LedgerState, ctx: RuleContext): Address {
+  return state.oracle ?? ctx.oracle
+}
 
 export function batchKey(eventId: string, batchId: string): string {
   return `${eventId}/${batchId}`
@@ -98,9 +133,22 @@ function hasDuplicates(addresses: readonly Address[]): boolean {
   return new Set(addresses.map((address) => address.toLowerCase())).size !== addresses.length
 }
 
-function checkBatchFields(record: { priceCents: number; quantity: number }): string | null {
+function checkBatchFields(record: {
+  priceCents: number
+  quantity: number
+  resaleCapPercent: number
+}): string | null {
   if (!isPositiveInteger(record.priceCents)) return 'price must be positive whole cents'
   if (!isPositiveInteger(record.quantity)) return 'quantity must be a positive whole number'
+  if (!Number.isSafeInteger(record.resaleCapPercent) || record.resaleCapPercent < 100) {
+    return 'resale cap must be a whole percentage of at least 100'
+  }
+  return null
+}
+
+function checkNewPayment(state: LedgerState, paymentRef: string): string | null {
+  if (!SHA256_PATTERN.test(paymentRef)) return 'payment reference must be a SHA-256 hex'
+  if (state.payments[paymentRef]) return 'payment already reported'
   return null
 }
 
@@ -113,6 +161,7 @@ export function checkRecord(
   if (record.actor === null && state.sealed) return 'genesis is closed'
 
   const isMember = (actor: Address) => includesAddress(state.board ?? [], actor)
+  const isOracle = (actor: Address) => sameAddress(actor, currentOracle(state, ctx))
   const batch = (eventId: string, batchId: string) => state.batches[batchKey(eventId, batchId)]
 
   switch (record.kind) {
@@ -148,8 +197,10 @@ export function checkRecord(
     }
 
     case 'TicketIssued': {
-      if (!sameAddress(record.actor, ctx.oracle)) return 'only the oracle issues tickets'
+      if (!isOracle(record.actor)) return 'only the oracle issues tickets'
       if (state.tickets[record.ticketId]) return 'ticket already issued'
+      const paymentError = checkNewPayment(state, record.paymentRef)
+      if (paymentError) return paymentError
       const target = batch(record.eventId, record.batchId)
       if (!target) return 'unknown batch'
       if (target.sold >= target.quantity) return 'batch is sold out'
@@ -188,6 +239,79 @@ export function checkRecord(
       if (includesAddress(state.handover.approvals, record.actor)) return 'already approved'
       return null
 
+    case 'PaymentRefunded':
+      if (!isOracle(record.actor)) return 'only the oracle reports payments'
+      if (!isPositiveInteger(record.amountCents)) return 'amount must be positive whole cents'
+      return checkNewPayment(state, record.paymentRef)
+
+    case 'PaymentReversed': {
+      if (!isOracle(record.actor)) return 'only the oracle reports payments'
+      const ticket = state.tickets[record.ticketId]
+      if (!ticket) return 'unknown ticket'
+      if (ticket.paymentRef !== record.paymentRef) return 'payment does not match the ticket'
+      if (state.payments[record.paymentRef] === 'reversed') return 'payment already reversed'
+      if (ticket.status === 'revoked') return 'ticket is not valid'
+      if (!isPositiveInteger(record.amountCents)) return 'amount must be positive whole cents'
+      return null
+    }
+
+    case 'TicketListed': {
+      const ticket = state.tickets[record.ticketId]
+      if (!ticket) return 'unknown ticket'
+      if (!sameAddress(ticket.owner, record.actor)) return 'only the owner lists a ticket'
+      if (ticket.status !== 'valid') return 'ticket is not valid for resale'
+      if (!isPositiveInteger(record.priceCents)) return 'price must be positive whole cents'
+      const batch = state.batches[batchKey(ticket.eventId, ticket.batchId)]
+      const cap = maxResalePrice(batch.priceCents, batch.resaleCapPercent)
+      if (record.priceCents > cap) return `price is above the resale cap of ${cap} cents`
+      return null
+    }
+
+    case 'ListingCancelled': {
+      const ticket = state.tickets[record.ticketId]
+      if (!ticket) return 'unknown ticket'
+      if (!sameAddress(ticket.owner, record.actor)) return 'only the owner cancels a listing'
+      if (ticket.status !== 'listed') return 'ticket is not listed'
+      return null
+    }
+
+    case 'ResaleSettled': {
+      if (!isOracle(record.actor)) return 'only the oracle reports payments'
+      const listed = state.tickets[record.listedTicketId]
+      if (!listed || listed.status !== 'listed') return 'ticket is not listed'
+      if (sameAddress(listed.owner, record.owner)) return 'nobody buys their own listing'
+      if (state.tickets[record.ticketId]) return 'ticket already issued'
+      if (record.priceCents !== listed.listingPriceCents) return 'price does not match the listed price'
+      const split = resaleSplit(record.priceCents)
+      if (
+        record.royaltyCents !== split.royaltyCents ||
+        record.platformFeeCents !== split.platformFeeCents ||
+        record.payoutCents !== split.payoutCents
+      ) {
+        return 'resale split does not match the fixed percentages'
+      }
+      return checkNewPayment(state, record.paymentRef)
+    }
+
+    case 'OracleChangeProposed':
+      if (!isMember(record.actor)) return 'not a board member'
+      if (state.oracleChange) return 'oracle change already open'
+      if (isOracle(record.newOracle)) return 'this is already the oracle'
+      return null
+
+    case 'OracleChangeApproved':
+      if (!isMember(record.actor)) return 'not a board member'
+      if (state.oracleChange?.id !== record.proposalId) return 'no open oracle change with this id'
+      if (includesAddress(state.oracleChange.approvals, record.actor)) return 'already approved'
+      return null
+
+    case 'OracleChangeCancelled':
+      if (state.oracleChange?.id !== record.proposalId) return 'no open oracle change with this id'
+      if (!sameAddress(state.oracleChange.proposer, record.actor)) {
+        return 'only the proposer can cancel'
+      }
+      return null
+
     case 'HandoverCancelled':
       if (state.handover?.id !== record.handoverId) return 'no open handover with this id'
       if (!sameAddress(state.handover.proposer, record.actor)) {
@@ -214,6 +338,7 @@ export function applyRecord(state: LedgerState, record: LedgerRecord): LedgerSta
       next.batches[key] = {
         priceCents: record.priceCents,
         quantity: record.quantity,
+        resaleCapPercent: record.resaleCapPercent,
         sold: next.batches[key]?.sold ?? 0,
       }
       break
@@ -228,8 +353,79 @@ export function applyRecord(state: LedgerState, record: LedgerRecord): LedgerSta
       break
 
     case 'TicketIssued':
-      next.tickets[record.ticketId] = true
+      next.tickets[record.ticketId] = {
+        eventId: record.eventId,
+        batchId: record.batchId,
+        owner: record.owner,
+        priceCents: record.priceCents,
+        paymentRef: record.paymentRef,
+        status: 'valid',
+        listingPriceCents: null,
+      }
+      next.payments[record.paymentRef] = 'ticket'
       next.batches[batchKey(record.eventId, record.batchId)].sold += 1
+      break
+
+    case 'PaymentRefunded':
+      next.payments[record.paymentRef] = 'refunded'
+      break
+
+    case 'PaymentReversed': {
+      const ticket = next.tickets[record.ticketId]
+      next.payments[record.paymentRef] = 'reversed'
+      // A ticket already resold stays with its buyer, who paid in good faith: the reversal is
+      // only an income loss. Otherwise the ticket is revoked and its place goes back on sale.
+      if (ticket.status === 'resold') break
+      ticket.status = 'revoked'
+      ticket.listingPriceCents = null
+      next.batches[batchKey(ticket.eventId, ticket.batchId)].sold -= 1
+      break
+    }
+
+    case 'TicketListed':
+      next.tickets[record.ticketId].status = 'listed'
+      next.tickets[record.ticketId].listingPriceCents = record.priceCents
+      break
+
+    case 'ListingCancelled':
+      next.tickets[record.ticketId].status = 'valid'
+      next.tickets[record.ticketId].listingPriceCents = null
+      break
+
+    case 'ResaleSettled': {
+      const listed = next.tickets[record.listedTicketId]
+      listed.status = 'resold'
+      listed.listingPriceCents = null
+      next.tickets[record.ticketId] = {
+        eventId: listed.eventId,
+        batchId: listed.batchId,
+        owner: record.owner,
+        priceCents: record.priceCents,
+        paymentRef: record.paymentRef,
+        status: 'valid',
+        listingPriceCents: null,
+      }
+      next.payments[record.paymentRef] = 'ticket'
+      break
+    }
+
+    case 'OracleChangeProposed':
+      next.oracleChange = {
+        id: record.proposalId,
+        proposer: record.actor,
+        newOracle: record.newOracle,
+        approvals: [record.actor],
+      }
+      completeOracleChangeIfMajority(next)
+      break
+
+    case 'OracleChangeApproved':
+      next.oracleChange!.approvals.push(record.actor)
+      completeOracleChangeIfMajority(next)
+      break
+
+    case 'OracleChangeCancelled':
+      next.oracleChange = null
       break
 
     case 'ExpenseProposed': {
@@ -288,4 +484,12 @@ function completeHandoverIfMajority(state: LedgerState) {
       expense.status = expenseStatus(expense.approvals, expense.rejections, state.board)
     }
   }
+}
+
+function completeOracleChangeIfMajority(state: LedgerState) {
+  const { oracleChange, board } = state
+  if (!oracleChange || !board) return
+  if (!isHandoverApproved(oracleChange.approvals, board)) return
+  state.oracle = oracleChange.newOracle
+  state.oracleChange = null
 }

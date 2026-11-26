@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyRecord, checkRecord, EMPTY_STATE, type LedgerState } from './rules'
+import { applyRecord, checkRecord, currentOracle, EMPTY_STATE, type LedgerState } from './rules'
 import { ORACLE, RULE_EXAMPLES } from './rules.examples'
 
 function run(state: LedgerState, record: Parameters<typeof checkRecord>[1]) {
@@ -33,6 +33,13 @@ describe('ledger rules', () => {
       for (const [key, sold] of Object.entries(expected.sold ?? {})) {
         expect(next.batches[key]?.sold).toBe(sold)
       }
+      for (const [id, status] of Object.entries(expected.ticketStatus ?? {})) {
+        expect(next.tickets[id]?.status).toBe(status)
+      }
+      for (const [id, owner] of Object.entries(expected.ticketOwner ?? {})) {
+        expect(next.tickets[id]?.owner).toBe(owner)
+      }
+      if (expected.oracle) expect(currentOracle(next, { oracle: ORACLE })).toBe(expected.oracle)
     })
   }
 })

@@ -43,9 +43,14 @@ async function eventWithBatch(quantity: number) {
       color: '#7c54c8',
     }),
   )
-  const action = await diego.sign('BatchCreated', { eventId: event.id, batchId: 'b1', priceCents: 2000, quantity })
+  const action = await diego.sign('BatchCreated', { eventId: event.id, batchId: 'b1', priceCents: 2000, quantity, resaleCapPercent: 120 })
   await diego.post(`/events/${event.id}/batches`, { changes: [{ batchId: 'b1', name: 'Only batch', action }] })
   return event.id
+}
+
+async function lastRecord() {
+  const { events } = await t.ledger.readEvents(null, 10_000)
+  return events.at(-1)?.record
 }
 
 describe('orders', () => {
@@ -127,7 +132,8 @@ describe('orders', () => {
     const updated = body<Order>(await user.get(`/orders/${created.id}`))
     expect(updated.status).toBe('refunded')
     expect(updated.failureReason).toContain('amount')
-    expect(t.pix.refunds).toContainEqual({ txid: created.txid, amountCents: 1000 })
+    expect(t.pix.refunds).toContainEqual(expect.objectContaining({ amountCents: 1000 }))
+    expect(await lastRecord()).toMatchObject({ kind: 'PaymentRefunded', amountCents: 1000, orderRef: created.id })
   })
 
   it('releases the reservation when the charge expires unpaid', async () => {
@@ -160,7 +166,8 @@ describe('orders', () => {
       const refunded = body<Order>(await late.get(`/orders/${lateOrder.id}`))
       expect(refunded.status).toBe('refunded')
       expect(refunded.failureReason).toContain('sold out')
-      expect(t.pix.refunds).toContainEqual({ txid: lateOrder.txid, amountCents: 2000 })
+      expect(t.pix.refunds).toContainEqual(expect.objectContaining({ amountCents: 2000 }))
+      expect(await lastRecord()).toMatchObject({ kind: 'PaymentRefunded', orderRef: lateOrder.id })
     } finally {
       t.clock.now = new Date()
     }

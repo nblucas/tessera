@@ -1,6 +1,6 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { Db } from '../db/client'
-import { batches, events, expenseDetails, expenses, receipts, tickets } from '../db/schema'
+import { batches, events, expenseDetails, expenses, paymentReports, receipts, tickets } from '../db/schema'
 import { peopleByAddress } from './accounts'
 
 type ExpenseLine = {
@@ -17,6 +17,11 @@ type ExpenseLine = {
 type Ledger = {
   ticketsSold: number
   ticketIncome: number
+  resaleCount: number
+  royaltyIncome: number
+  reversalCount: number
+  // Income lost to bank reversals: the ticket price for a sale, the royalty for a resale.
+  reversals: number
   income: number
   expenses: ExpenseLine[]
   expenseTotal: number
@@ -40,11 +45,14 @@ export async function openAccounts(db: Db, association: string) {
     db
       .select({
         eventId: tickets.eventId,
+        kind: tickets.kind,
+        count: sql<number>`count(*)::int`,
         amount: sql<number>`sum(${tickets.priceCents})::bigint`,
+        royalty: sql<number>`coalesce(sum(${tickets.royaltyCents}), 0)::bigint`,
       })
       .from(tickets)
       .where(eq(tickets.association, association))
-      .groupBy(tickets.eventId),
+      .groupBy(tickets.eventId, tickets.kind),
     db
       .select({ expense: expenses, description: expenseDetails.description, receipt: receipts })
       .from(expenses)
@@ -56,6 +64,14 @@ export async function openAccounts(db: Db, association: string) {
       .where(and(eq(expenses.association, association), eq(expenses.status, 'approved')))
       .orderBy(asc(expenses.decidedAt)),
   ])
+  const reversalRows = await db
+    .select({ report: paymentReports, ticket: tickets })
+    .from(paymentReports)
+    .innerJoin(
+      tickets,
+      and(eq(tickets.association, paymentReports.association), eq(tickets.ticketId, paymentReports.ticketId)),
+    )
+    .where(and(eq(paymentReports.association, association), eq(paymentReports.kind, 'PaymentReversed')))
 
   const person = await peopleByAddress(
     db,
@@ -64,6 +80,10 @@ export async function openAccounts(db: Db, association: string) {
   const empty = (): Ledger => ({
     ticketsSold: 0,
     ticketIncome: 0,
+    resaleCount: 0,
+    royaltyIncome: 0,
+    reversalCount: 0,
+    reversals: 0,
     income: 0,
     expenses: [],
     expenseTotal: 0,
@@ -80,7 +100,19 @@ export async function openAccounts(db: Db, association: string) {
   }
   for (const row of ticketRows) {
     const ledger = byEvent.get(row.eventId)
-    if (ledger) ledger.ticketIncome += Number(row.amount)
+    if (!ledger) continue
+    if (row.kind === 'resale') {
+      ledger.resaleCount += Number(row.count)
+      ledger.royaltyIncome += Number(row.royalty)
+    } else {
+      ledger.ticketIncome += Number(row.amount)
+    }
+  }
+  for (const { report, ticket } of reversalRows) {
+    const ledger = byEvent.get(ticket.eventId)
+    if (!ledger) continue
+    ledger.reversalCount += 1
+    ledger.reversals += ticket.kind === 'resale' ? Number(ticket.royaltyCents ?? 0) : report.amountCents
   }
   for (const { expense, description, receipt } of expenseRows) {
     const ledger = (expense.eventId && byEvent.get(expense.eventId)) || general
@@ -100,7 +132,7 @@ export async function openAccounts(db: Db, association: string) {
 
   const all = [...byEvent.values(), general]
   for (const ledger of all) {
-    ledger.income = ledger.ticketIncome
+    ledger.income = ledger.ticketIncome + ledger.royaltyIncome - ledger.reversals
     ledger.net = ledger.income - ledger.expenseTotal
   }
 
@@ -110,15 +142,21 @@ export async function openAccounts(db: Db, association: string) {
       categories.set(expense.category, (categories.get(expense.category) ?? 0) + expense.amountCents)
     }
   }
-  const ticketIncome = all.reduce((sum, ledger) => sum + ledger.ticketIncome, 0)
-  const expenseTotal = all.reduce((sum, ledger) => sum + ledger.expenseTotal, 0)
+  const total = (pick: (ledger: Ledger) => number) => all.reduce((sum, ledger) => sum + pick(ledger), 0)
+  const ticketIncome = total((ledger) => ledger.ticketIncome)
+  const royaltyIncome = total((ledger) => ledger.royaltyIncome)
+  const reversals = total((ledger) => ledger.reversals)
+  const income = total((ledger) => ledger.income)
+  const expenseTotal = total((ledger) => ledger.expenseTotal)
 
   return {
     summary: {
       ticketIncome,
-      income: ticketIncome,
+      royaltyIncome,
+      reversals,
+      income,
       expenses: expenseTotal,
-      balance: ticketIncome - expenseTotal,
+      balance: income - expenseTotal,
       byCategory: [...categories.entries()]
         .map(([category, amount]) => ({ category, amount }))
         .sort((a, b) => b.amount - a.amount),

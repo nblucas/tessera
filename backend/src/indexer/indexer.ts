@@ -6,6 +6,8 @@ import type { Address } from 'viem'
 import type { Db, Tx } from '../db/client'
 import {
   appliedEvents,
+  oracleChanges,
+  paymentReports,
   batches,
   boardTerms,
   expenses,
@@ -51,7 +53,7 @@ export class Indexer {
     await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${INDEXER_LOCK})`)
       await tx.execute(
-        sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events`,
+        sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events, read.payment_reports, read.oracle_changes`,
       )
     })
     return this.catchUp()
@@ -89,7 +91,12 @@ async function applyEvent(tx: Tx, event: LedgerEvent) {
 
     case 'BatchCreated':
     case 'BatchUpdated': {
-      const values = { priceCents: record.priceCents, quantity: record.quantity, removed: false }
+      const values = {
+        priceCents: record.priceCents,
+        quantity: record.quantity,
+        resaleCapPercent: record.resaleCapPercent,
+        removed: false,
+      }
       await tx
         .insert(batches)
         .values({ association, eventId: record.eventId, batchId: record.batchId, createdAt: at, ...values })
@@ -128,11 +135,129 @@ async function applyEvent(tx: Tx, event: LedgerEvent) {
         priceCents: record.priceCents,
         orderRef: record.orderRef,
         issuedAt: at,
+        paymentRef: record.paymentRef,
       })
       await tx
         .update(batches)
         .set({ sold: sql`${batches.sold} + 1` })
         .where(batchWhere(association, record.eventId, record.batchId))
+      await report(tx, association, record.actor, at, {
+        paymentRef: record.paymentRef,
+        kind: 'TicketIssued',
+        amountCents: record.priceCents,
+        ticketId: record.ticketId,
+        orderRef: record.orderRef,
+      })
+      return
+
+    case 'PaymentRefunded':
+      await report(tx, association, record.actor, at, {
+        paymentRef: record.paymentRef,
+        kind: 'PaymentRefunded',
+        amountCents: record.amountCents,
+        orderRef: record.orderRef,
+        reason: record.reason,
+      })
+      return
+
+    case 'PaymentReversed': {
+      const [ticket] = await tx.select().from(tickets).where(ticketWhere(association, record.ticketId))
+      // Mirrors the shared rule: a resold ticket stays with its buyer; otherwise it is revoked
+      // and its place goes back on sale.
+      if (ticket.status !== 'resold') {
+        await tx
+          .update(tickets)
+          .set({ status: 'revoked', listingPriceCents: null, revokedAt: at })
+          .where(ticketWhere(association, record.ticketId))
+        await tx
+          .update(batches)
+          .set({ sold: sql`${batches.sold} - 1` })
+          .where(batchWhere(association, ticket.eventId, ticket.batchId))
+      }
+      await report(tx, association, record.actor, at, {
+        paymentRef: record.paymentRef,
+        kind: 'PaymentReversed',
+        amountCents: record.amountCents,
+        ticketId: record.ticketId,
+      })
+      return
+    }
+
+    case 'TicketListed':
+      await tx
+        .update(tickets)
+        .set({ status: 'listed', listingPriceCents: record.priceCents })
+        .where(ticketWhere(association, record.ticketId))
+      return
+
+    case 'ListingCancelled':
+      await tx
+        .update(tickets)
+        .set({ status: 'valid', listingPriceCents: null })
+        .where(ticketWhere(association, record.ticketId))
+      return
+
+    case 'ResaleSettled': {
+      const [listed] = await tx
+        .update(tickets)
+        .set({ status: 'resold', listingPriceCents: null })
+        .where(ticketWhere(association, record.listedTicketId))
+        .returning()
+      await tx.insert(tickets).values({
+        ticketId: record.ticketId,
+        association,
+        eventId: listed.eventId,
+        batchId: listed.batchId,
+        owner: record.owner,
+        priceCents: record.priceCents,
+        orderRef: record.orderRef,
+        issuedAt: at,
+        kind: 'resale',
+        paymentRef: record.paymentRef,
+        resoldFrom: record.listedTicketId,
+        royaltyCents: record.royaltyCents,
+      })
+      await report(tx, association, record.actor, at, {
+        paymentRef: record.paymentRef,
+        kind: 'ResaleSettled',
+        amountCents: record.priceCents,
+        ticketId: record.ticketId,
+        orderRef: record.orderRef,
+      })
+      return
+    }
+
+    case 'OracleChangeProposed':
+      await tx.insert(oracleChanges).values({
+        association,
+        proposalId: record.proposalId,
+        proposer: record.actor,
+        newOracle: record.newOracle,
+        approvals: [record.actor],
+        status: 'open',
+        proposedAt: at,
+      })
+      await completeOracleChangeIfMajority(tx, association, record.proposalId, at)
+      return
+
+    case 'OracleChangeApproved': {
+      const [row] = await tx
+        .select()
+        .from(oracleChanges)
+        .where(oracleChangeWhere(association, record.proposalId))
+      await tx
+        .update(oracleChanges)
+        .set({ approvals: [...row.approvals, record.actor] })
+        .where(oracleChangeWhere(association, record.proposalId))
+      await completeOracleChangeIfMajority(tx, association, record.proposalId, at)
+      return
+    }
+
+    case 'OracleChangeCancelled':
+      await tx
+        .update(oracleChanges)
+        .set({ status: 'cancelled', closedAt: at })
+        .where(oracleChangeWhere(association, record.proposalId))
       return
 
     case 'ExpenseProposed': {
@@ -212,6 +337,39 @@ function batchWhere(association: string, eventId: string, batchId: string) {
     eq(batches.eventId, eventId),
     eq(batches.batchId, batchId),
   )
+}
+
+function ticketWhere(association: string, ticketId: string) {
+  return and(eq(tickets.association, association), eq(tickets.ticketId, ticketId))
+}
+
+function oracleChangeWhere(association: string, proposalId: string) {
+  return and(eq(oracleChanges.association, association), eq(oracleChanges.proposalId, proposalId))
+}
+
+async function report(
+  tx: Tx,
+  association: string,
+  oracle: Address,
+  at: Date,
+  values: Omit<typeof paymentReports.$inferInsert, 'association' | 'oracle' | 'reportedAt'>,
+) {
+  await tx.insert(paymentReports).values({ association, oracle, reportedAt: at, ...values })
+}
+
+async function completeOracleChangeIfMajority(
+  tx: Tx,
+  association: string,
+  proposalId: string,
+  at: Date,
+) {
+  const [change] = await tx.select().from(oracleChanges).where(oracleChangeWhere(association, proposalId))
+  const term = await currentTerm(tx, association)
+  if (!term || !isHandoverApproved(change.approvals, term.members)) return
+  await tx
+    .update(oracleChanges)
+    .set({ status: 'approved', closedAt: at })
+    .where(oracleChangeWhere(association, proposalId))
 }
 
 function expenseWhere(association: string, expenseId: string) {

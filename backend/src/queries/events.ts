@@ -65,7 +65,7 @@ export async function listEvents(
     db
       .select({ eventId: orders.eventId, batchId: orders.batchId, held: count() })
       .from(orders)
-      .where(and(inArray(orders.eventId, ids), openOrderFilter(now)))
+      .where(and(inArray(orders.eventId, ids), eq(orders.kind, 'ticket'), openOrderFilter(now)))
       .groupBy(orders.eventId, orders.batchId),
   ])
 

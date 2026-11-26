@@ -15,6 +15,7 @@ const batchFields = [
   { name: 'batchId', type: 'string' },
   { name: 'priceCents', type: 'uint256' },
   { name: 'quantity', type: 'uint256' },
+  { name: 'resaleCapPercent', type: 'uint256' },
 ] as const
 
 export const EIP712_TYPES = {
@@ -40,6 +41,7 @@ export const EIP712_TYPES = {
     { name: 'owner', type: 'address' },
     { name: 'priceCents', type: 'uint256' },
     { name: 'orderRef', type: 'string' },
+    { name: 'paymentRef', type: 'bytes32' },
   ],
   ExpenseProposed: [
     ...envelope,
@@ -54,6 +56,44 @@ export const EIP712_TYPES = {
     { name: 'expenseId', type: 'string' },
     { name: 'approve', type: 'bool' },
   ],
+  PaymentRefunded: [
+    ...envelope,
+    { name: 'paymentRef', type: 'bytes32' },
+    { name: 'amountCents', type: 'uint256' },
+    { name: 'orderRef', type: 'string' },
+    { name: 'reason', type: 'string' },
+  ],
+  PaymentReversed: [
+    ...envelope,
+    { name: 'paymentRef', type: 'bytes32' },
+    { name: 'ticketId', type: 'string' },
+    { name: 'amountCents', type: 'uint256' },
+  ],
+  TicketListed: [
+    ...envelope,
+    { name: 'ticketId', type: 'string' },
+    { name: 'priceCents', type: 'uint256' },
+  ],
+  ListingCancelled: [...envelope, { name: 'ticketId', type: 'string' }],
+  ResaleSettled: [
+    ...envelope,
+    { name: 'paymentRef', type: 'bytes32' },
+    { name: 'listedTicketId', type: 'string' },
+    { name: 'ticketId', type: 'string' },
+    { name: 'owner', type: 'address' },
+    { name: 'priceCents', type: 'uint256' },
+    { name: 'royaltyCents', type: 'uint256' },
+    { name: 'platformFeeCents', type: 'uint256' },
+    { name: 'payoutCents', type: 'uint256' },
+    { name: 'orderRef', type: 'string' },
+  ],
+  OracleChangeProposed: [
+    ...envelope,
+    { name: 'proposalId', type: 'string' },
+    { name: 'newOracle', type: 'address' },
+  ],
+  OracleChangeApproved: [...envelope, { name: 'proposalId', type: 'string' }],
+  OracleChangeCancelled: [...envelope, { name: 'proposalId', type: 'string' }],
 } as const satisfies Record<SignedKind, readonly { name: string; type: string }[]>
 
 // What the client signs: the record's fields without `kind`, plus the envelope.

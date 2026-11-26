@@ -66,6 +66,8 @@ describe('open accounts', () => {
     const result = await accounts()
     expect(result.summary).toEqual({
       ticketIncome: SEED_INCOME,
+      royaltyIncome: 0,
+      reversals: 0,
       income: SEED_INCOME,
       expenses: 0,
       balance: SEED_INCOME,

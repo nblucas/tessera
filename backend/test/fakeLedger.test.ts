@@ -33,7 +33,7 @@ beforeEach(async () => {
       eventId: 'party',
       batchId: 'b1',
       priceCents: 5500,
-      quantity: 10,
+      quantity: 10, resaleCapPercent: 120,
     },
   ])
 })
@@ -139,6 +139,7 @@ describe('fake ledger', () => {
         owner: student.address,
         priceCents: 5500,
         orderRef: 'order-1',
+        paymentRef: 'e'.repeat(64),
       },
       { nonce: 0 },
     )
@@ -153,7 +154,7 @@ describe('fake ledger', () => {
 
     const error = await rejection(
       ledger.writeGenesis(ASSOCIATION, [
-        { kind: 'BatchCreated', actor: null, eventId: 'p', batchId: 'b', priceCents: 1, quantity: 1 },
+        { kind: 'BatchCreated', actor: null, eventId: 'p', batchId: 'b', priceCents: 1, quantity: 1, resaleCapPercent: 120 },
       ]),
     )
     expect(error.message).toContain('genesis is closed')

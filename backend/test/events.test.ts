@@ -62,7 +62,7 @@ describe('events', () => {
       eventId: event.id,
       batchId: 'b1',
       priceCents: 3000,
-      quantity: 100,
+      quantity: 100, resaleCapPercent: 120,
     })
     const response = await diego.post(`/events/${event.id}/batches`, {
       changes: [{ batchId: 'b1', name: 'Early bird', action }],
@@ -98,7 +98,7 @@ describe('events', () => {
       eventId: 'freshers-welcome',
       batchId: 'b9',
       priceCents: 3000,
-      quantity: 10,
+      quantity: 10, resaleCapPercent: 120,
     })
     const response = await diego.post(`/events/${event.id}/batches`, {
       changes: [{ batchId: 'b9', name: 'Sneaky', action }],
@@ -111,7 +111,7 @@ describe('events', () => {
       eventId: 'end-of-year-party',
       batchId: 'b2',
       priceCents: 9900,
-      quantity: 300,
+      quantity: 300, resaleCapPercent: 120,
     })
     const response = await diego.post('/events/end-of-year-party/batches', {
       changes: [{ batchId: 'b2', action }],

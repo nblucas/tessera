@@ -22,14 +22,14 @@ export function demoPrivateKey(email: string): Hex {
 
 // From backend/src/seed/data.ts: price, quantity and the sales made before the app existed.
 export const SEED_BATCHES = [
-  { eventId: "end-of-year-party", batchId: "b1", priceCents: 4000n, quantity: 200n, sold: 200n },
-  { eventId: "end-of-year-party", batchId: "b2", priceCents: 5500n, quantity: 300n, sold: 214n },
-  { eventId: "end-of-year-party", batchId: "b3", priceCents: 7000n, quantity: 200n, sold: 0n },
-  { eventId: "freshers-welcome", batchId: "b1", priceCents: 2500n, quantity: 150n, sold: 32n },
-  { eventId: "freshers-welcome", batchId: "b2", priceCents: 5000n, quantity: 350n, sold: 41n },
-  { eventId: "interuniversity-games", batchId: "b1", priceCents: 18000n, quantity: 400n, sold: 97n },
-  { eventId: "interuniversity-games", batchId: "b2", priceCents: 7000n, quantity: 300n, sold: 12n },
-  { eventId: "halloween-night", batchId: "b1", priceCents: 3500n, quantity: 250n, sold: 250n },
+  { eventId: "end-of-year-party", batchId: "b1", priceCents: 4000n, quantity: 200n, resaleCapPercent: 120n, sold: 200n },
+  { eventId: "end-of-year-party", batchId: "b2", priceCents: 5500n, quantity: 300n, resaleCapPercent: 120n, sold: 214n },
+  { eventId: "end-of-year-party", batchId: "b3", priceCents: 7000n, quantity: 200n, resaleCapPercent: 120n, sold: 0n },
+  { eventId: "freshers-welcome", batchId: "b1", priceCents: 2500n, quantity: 150n, resaleCapPercent: 110n, sold: 32n },
+  { eventId: "freshers-welcome", batchId: "b2", priceCents: 5000n, quantity: 350n, resaleCapPercent: 110n, sold: 41n },
+  { eventId: "interuniversity-games", batchId: "b1", priceCents: 18000n, quantity: 400n, resaleCapPercent: 120n, sold: 97n },
+  { eventId: "interuniversity-games", batchId: "b2", priceCents: 7000n, quantity: 300n, resaleCapPercent: 120n, sold: 12n },
+  { eventId: "halloween-night", batchId: "b1", priceCents: 3500n, quantity: 250n, resaleCapPercent: 100n, sold: 250n },
 ] as const;
 
 // Where deploy.ts saves the contract address for demo.ts.

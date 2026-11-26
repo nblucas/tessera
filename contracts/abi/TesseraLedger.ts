@@ -22,8 +22,24 @@ export const tesseraLedgerAbi = [
     "type": "constructor"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxPriceCents",
+        "type": "uint256"
+      }
+    ],
+    "name": "AboveResaleCap",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "AlreadyApproved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyOracle",
     "type": "error"
   },
   {
@@ -147,6 +163,11 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "InvalidPaymentRef",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidPrice",
     "type": "error"
   },
@@ -157,12 +178,27 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "InvalidResaleCap",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidShortString",
     "type": "error"
   },
   {
     "inputs": [],
+    "name": "ListedPriceMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NoOpenHandoverWithThisId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NoOpenOracleChangeWithThisId",
     "type": "error"
   },
   {
@@ -188,6 +224,21 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "OnlyOracleReports",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyOwnerCancels",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyOwnerLists",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "OnlyProposerCanCancel",
     "type": "error"
   },
@@ -198,7 +249,37 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "OracleChangeAlreadyOpen",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OwnListing",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentAlreadyReported",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentAlreadyReversed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PaymentDoesNotMatchTicket",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "PriceMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ResaleSplitMismatch",
     "type": "error"
   },
   {
@@ -219,6 +300,21 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "TicketNotListed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TicketNotValid",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TicketNotValidForResale",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "UnknownBatch",
     "type": "error"
   },
@@ -230,6 +326,11 @@ export const tesseraLedgerAbi = [
   {
     "inputs": [],
     "name": "UnknownExpense",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnknownTicket",
     "type": "error"
   },
   {
@@ -268,6 +369,12 @@ export const tesseraLedgerAbi = [
         "indexed": false,
         "internalType": "uint256",
         "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "resaleCapPercent",
         "type": "uint256"
       }
     ],
@@ -330,6 +437,12 @@ export const tesseraLedgerAbi = [
         "indexed": false,
         "internalType": "uint256",
         "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "resaleCapPercent",
         "type": "uint256"
       }
     ],
@@ -509,6 +622,25 @@ export const tesseraLedgerAbi = [
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "ticketId",
+        "type": "string"
+      }
+    ],
+    "name": "ListingCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "string",
         "name": "eventId",
@@ -534,6 +666,217 @@ export const tesseraLedgerAbi = [
       }
     ],
     "name": "OpeningSalesRecorded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "proposalId",
+        "type": "string"
+      }
+    ],
+    "name": "OracleChangeApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "proposalId",
+        "type": "string"
+      }
+    ],
+    "name": "OracleChangeCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "proposalId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "OracleChangeProposed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "OracleChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRef",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountCents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "orderRef",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "name": "PaymentRefunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRef",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "ticketId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amountCents",
+        "type": "uint256"
+      }
+    ],
+    "name": "PaymentReversed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRef",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "listedTicketId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "ticketId",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "priceCents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "royaltyCents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "platformFeeCents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "payoutCents",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "orderRef",
+        "type": "string"
+      }
+    ],
+    "name": "ResaleSettled",
     "type": "event"
   },
   {
@@ -599,14 +942,71 @@ export const tesseraLedgerAbi = [
         "internalType": "string",
         "name": "orderRef",
         "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "paymentRef",
+        "type": "bytes32"
       }
     ],
     "name": "TicketIssued",
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "actor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "ticketId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "priceCents",
+        "type": "uint256"
+      }
+    ],
+    "name": "TicketListed",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "MAX_SAFE_INTEGER",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "RESALE_PLATFORM_FEE_PERCENT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "RESALE_ROYALTY_PERCENT",
     "outputs": [
       {
         "internalType": "uint256",
@@ -658,6 +1058,51 @@ export const tesseraLedgerAbi = [
       }
     ],
     "name": "approveHandover",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "proposalId",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TesseraLedger.OracleChangeMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "approveOracleChange",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -770,6 +1215,96 @@ export const tesseraLedgerAbi = [
           },
           {
             "internalType": "string",
+            "name": "ticketId",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TesseraLedger.ListingCancelledMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "cancelListing",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "proposalId",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TesseraLedger.OracleChangeMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "cancelOracleChange",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
             "name": "eventId",
             "type": "string"
           },
@@ -786,6 +1321,11 @@ export const tesseraLedgerAbi = [
           {
             "internalType": "uint256",
             "name": "quantity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "resaleCapPercent",
             "type": "uint256"
           }
         ],
@@ -824,6 +1364,11 @@ export const tesseraLedgerAbi = [
       {
         "internalType": "uint256",
         "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "resaleCapPercent",
         "type": "uint256"
       }
     ],
@@ -1000,6 +1545,40 @@ export const tesseraLedgerAbi = [
   {
     "inputs": [
       {
+        "internalType": "string",
+        "name": "ticketId",
+        "type": "string"
+      }
+    ],
+    "name": "getTicket",
+    "outputs": [
+      {
+        "internalType": "enum TesseraLedger.TicketStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentRef",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "listingPriceCents",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "account",
         "type": "address"
@@ -1088,6 +1667,11 @@ export const tesseraLedgerAbi = [
             "internalType": "string",
             "name": "orderRef",
             "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "paymentRef",
+            "type": "bytes32"
           }
         ],
         "internalType": "struct TesseraLedger.TicketIssuedMessage",
@@ -1101,6 +1685,56 @@ export const tesseraLedgerAbi = [
       }
     ],
     "name": "issueTicket",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "ticketId",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "priceCents",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TesseraLedger.TicketListedMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "listTicket",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1178,12 +1812,64 @@ export const tesseraLedgerAbi = [
   },
   {
     "inputs": [],
+    "name": "openOracleChange",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "open",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "id",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "proposer",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "approvalCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "oracle",
     "outputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "payments",
+    "outputs": [
+      {
+        "internalType": "enum TesseraLedger.PaymentOutcome",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -1307,6 +1993,56 @@ export const tesseraLedgerAbi = [
   {
     "inputs": [
       {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "proposalId",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "newOracle",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct TesseraLedger.OracleChangeProposedMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "proposeOracleChange",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "eventId",
         "type": "string"
@@ -1328,6 +2064,66 @@ export const tesseraLedgerAbi = [
       }
     ],
     "name": "recordOpeningSales",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "paymentRef",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountCents",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "orderRef",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "reason",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TesseraLedger.PaymentRefundedMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "refundPayment",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1385,12 +2181,152 @@ export const tesseraLedgerAbi = [
   {
     "inputs": [
       {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "paymentRef",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "ticketId",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountCents",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct TesseraLedger.PaymentReversedMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "reversePayment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address[]",
         "name": "members",
         "type": "address[]"
       }
     ],
     "name": "setBoard",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "actor",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "association",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "paymentRef",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "listedTicketId",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "ticketId",
+            "type": "string"
+          },
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "priceCents",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "royaltyCents",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "platformFeeCents",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "payoutCents",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "orderRef",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct TesseraLedger.ResaleSettledMessage",
+        "name": "message",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "settleResale",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1450,6 +2386,11 @@ export const tesseraLedgerAbi = [
           {
             "internalType": "uint256",
             "name": "quantity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "resaleCapPercent",
             "type": "uint256"
           }
         ],

@@ -17,7 +17,7 @@ for (const director of directors) console.log(`  director ${director.name}: ${di
 
 for (const batch of SEED_BATCHES) {
   await send(
-    await ledger.write.createGenesisBatch([batch.eventId, batch.batchId, batch.priceCents, batch.quantity]),
+    await ledger.write.createGenesisBatch([batch.eventId, batch.batchId, batch.priceCents, batch.quantity, batch.resaleCapPercent]),
   );
   if (batch.sold > 0n) {
     await send(

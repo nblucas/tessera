@@ -24,14 +24,14 @@ let indexer: Indexer
 
 beforeEach(async () => {
   await testDb.db.execute(
-    sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events`,
+    sql`TRUNCATE read.board_terms, read.handovers, read.batches, read.tickets, read.expenses, read.indexer_cursor, read.applied_events, read.payment_reports, read.oracle_changes`,
   )
   source = new MemoryEventSource()
   indexer = new Indexer(testDb.db, source)
   source.append(
     ASSOCIATION,
     { kind: 'BoardSet', actor: null, members: [A, B, C] },
-    { kind: 'BatchCreated', actor: null, eventId: 'party', batchId: 'b1', priceCents: 5500, quantity: 300 },
+    { kind: 'BatchCreated', actor: null, eventId: 'party', batchId: 'b1', priceCents: 5500, quantity: 300, resaleCapPercent: 120 },
   )
 })
 
@@ -44,6 +44,7 @@ const ticket = (ticketId: string): LedgerRecord => ({
   owner: STUDENT,
   priceCents: 5500,
   orderRef: `order-${ticketId}`,
+  paymentRef: ticketId.padEnd(64, '0').replace(/[^0-9a-f]/g, 'a'),
 })
 
 const expense = (actor: Address, expenseId = 'x1'): LedgerRecord => ({
@@ -116,6 +117,7 @@ describe('indexer', () => {
       batchId: 'b1',
       priceCents: 6000,
       quantity: 250,
+      resaleCapPercent: 120,
     })
     await indexer.catchUp()
     expect(await batchRow()).toMatchObject({ priceCents: 6000, quantity: 250, removed: false })

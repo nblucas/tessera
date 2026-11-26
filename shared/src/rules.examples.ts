@@ -3,7 +3,7 @@
 //
 // Each example applies `given` in order (every record must be accepted), then checks `when`.
 import type { Address } from 'viem'
-import type { ExpenseStatus } from './rules'
+import type { ExpenseStatus, TicketStatus } from './rules'
 import type { LedgerRecord } from './records'
 
 export type RuleExample = {
@@ -19,6 +19,9 @@ export type RuleExample = {
           handoverOpen?: boolean
           expenseStatus?: Record<string, ExpenseStatus>
           sold?: Record<string, number>
+          ticketStatus?: Record<string, TicketStatus>
+          ticketOwner?: Record<string, Address>
+          oracle?: Address
         }
       }
 }
@@ -57,7 +60,10 @@ const genesisBatch: LedgerRecord = {
   batchId: 'b1',
   priceCents: 5500,
   quantity: 100,
+  resaleCapPercent: 120,
 }
+
+const NEW_ORACLE: Address = '0x0000000000000000000000000000000000000088'
 
 export const RULE_EXAMPLES: RuleExample[] = [
   {
@@ -342,6 +348,192 @@ export const RULE_EXAMPLES: RuleExample[] = [
     when: ticket('t1'),
     then: { rejected: 'sold out' },
   },
+
+  // Payment outcomes reported by the oracle
+  {
+    name: 'a payment produces one ticket only',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: { ...(ticket('t2') as object), paymentRef: ref('t1') } as LedgerRecord,
+    then: { rejected: 'payment already reported' },
+  },
+  {
+    name: 'a ticket needs a payment reference',
+    given: [board, batch('BatchCreated', A)],
+    when: { ...(ticket('t1') as object), paymentRef: 'abc' } as LedgerRecord,
+    then: { rejected: 'payment reference' },
+  },
+  {
+    name: 'the oracle reports a refunded payment once',
+    given: [board, batch('BatchCreated', A), refund(ref('p1'))],
+    when: refund(ref('p1')),
+    then: { rejected: 'payment already reported' },
+  },
+  {
+    name: 'a refunded payment cannot become a ticket',
+    given: [board, batch('BatchCreated', A), refund(ref('t1'))],
+    when: ticket('t1'),
+    then: { rejected: 'payment already reported' },
+  },
+  {
+    name: 'only the oracle reports refunds',
+    given: [board],
+    when: refund(ref('p1'), A),
+    then: { rejected: 'only the oracle' },
+  },
+  {
+    name: 'a reversed payment revokes its ticket and returns it to stock',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: reverse('t1'),
+    then: { accepted: { ticketStatus: { t1: 'revoked' }, sold: { 'party/b1': 0 } } },
+  },
+  {
+    name: 'a reversal must name the payment of that ticket',
+    given: [board, batch('BatchCreated', A), ticket('t1'), ticket('t2')],
+    when: { ...(reverse('t1') as object), paymentRef: ref('t2') } as LedgerRecord,
+    then: { rejected: 'does not match the ticket' },
+  },
+  {
+    name: 'a ticket is reversed once',
+    given: [board, batch('BatchCreated', A), ticket('t1'), reverse('t1')],
+    when: reverse('t1'),
+    then: { rejected: 'already reversed' },
+  },
+  {
+    name: 'only the oracle reports reversals',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: reverse('t1', A),
+    then: { rejected: 'only the oracle' },
+  },
+
+  // Resale
+  {
+    name: 'the owner lists a ticket within the resale cap',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: list('t1', 6600),
+    then: { accepted: { ticketStatus: { t1: 'listed' } } },
+  },
+  {
+    name: 'a listing above the resale cap is refused',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: list('t1', 6601),
+    then: { rejected: 'above the resale cap' },
+  },
+  {
+    name: 'only the owner lists a ticket',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: list('t1', 5000, D),
+    then: { rejected: 'only the owner' },
+  },
+  {
+    name: 'a listed ticket cannot be listed again',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 5000)],
+    when: list('t1', 5500),
+    then: { rejected: 'not valid' },
+  },
+  {
+    name: 'a revoked ticket cannot be resold',
+    given: [board, batch('BatchCreated', A), ticket('t1'), reverse('t1')],
+    when: list('t1', 5000),
+    then: { rejected: 'not valid' },
+  },
+  {
+    name: 'the owner cancels a listing',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 5000)],
+    when: { kind: 'ListingCancelled', actor: STUDENT, ticketId: 't1' },
+    then: { accepted: { ticketStatus: { t1: 'valid' } } },
+  },
+  {
+    name: 'a paid resale moves the ticket to the buyer',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000)],
+    when: settle('t1', 't2', 6000),
+    then: {
+      accepted: {
+        ticketStatus: { t1: 'resold', t2: 'valid' },
+        ticketOwner: { t2: D },
+        sold: { 'party/b1': 1 },
+      },
+    },
+  },
+  {
+    name: 'a resale is settled at the listed price',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000)],
+    when: settle('t1', 't2', 5000),
+    then: { rejected: 'listed price' },
+  },
+  {
+    name: 'a resale splits royalty, platform fee and payout as fixed',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000)],
+    when: { ...(settle('t1', 't2', 6000) as object), royaltyCents: 0, payoutCents: 5700 } as LedgerRecord,
+    then: { rejected: 'split' },
+  },
+  {
+    name: 'a ticket that is not listed cannot be bought',
+    given: [board, batch('BatchCreated', A), ticket('t1')],
+    when: settle('t1', 't2', 5500),
+    then: { rejected: 'not listed' },
+  },
+  {
+    name: 'nobody buys their own listing',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000)],
+    when: settle('t1', 't2', 6000, STUDENT),
+    then: { rejected: 'own listing' },
+  },
+  {
+    name: 'a reversed resale revokes the new ticket',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000), settle('t1', 't2', 6000)],
+    when: { kind: 'PaymentReversed', actor: ORACLE, paymentRef: ref('t2'), ticketId: 't2', amountCents: 6000 },
+    then: { accepted: { ticketStatus: { t2: 'revoked' }, sold: { 'party/b1': 0 } } },
+  },
+
+  {
+    name: 'a reversal after the ticket was resold is recorded, and the buyer keeps their ticket',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000), settle('t1', 't2', 6000)],
+    when: reverse('t1'),
+    then: { accepted: { ticketStatus: { t1: 'resold', t2: 'valid' }, sold: { 'party/b1': 1 } } },
+  },
+  {
+    name: 'a payment is reversed once, even after a resale',
+    given: [board, batch('BatchCreated', A), ticket('t1'), list('t1', 6000), settle('t1', 't2', 6000), reverse('t1')],
+    when: reverse('t1'),
+    then: { rejected: 'already reversed' },
+  },
+
+  // Replacing the oracle
+  {
+    name: 'a majority of the board replaces the oracle',
+    given: [board, { kind: 'OracleChangeProposed', actor: A, proposalId: 'o1', newOracle: NEW_ORACLE }],
+    when: { kind: 'OracleChangeApproved', actor: B, proposalId: 'o1' },
+    then: { accepted: { oracle: NEW_ORACLE } },
+  },
+  {
+    name: 'the former oracle can no longer issue tickets',
+    given: [
+      board,
+      batch('BatchCreated', A),
+      { kind: 'OracleChangeProposed', actor: A, proposalId: 'o1', newOracle: NEW_ORACLE },
+      { kind: 'OracleChangeApproved', actor: B, proposalId: 'o1' },
+    ],
+    when: ticket('t1'),
+    then: { rejected: 'only the oracle' },
+  },
+  {
+    name: 'only directors propose a new oracle',
+    given: [board],
+    when: { kind: 'OracleChangeProposed', actor: STUDENT, proposalId: 'o1', newOracle: NEW_ORACLE },
+    then: { rejected: 'not a board member' },
+  },
+  {
+    name: 'one oracle change is open at a time',
+    given: [board, { kind: 'OracleChangeProposed', actor: A, proposalId: 'o1', newOracle: NEW_ORACLE }],
+    when: { kind: 'OracleChangeProposed', actor: B, proposalId: 'o2', newOracle: NEW_ORACLE },
+    then: { rejected: 'oracle change already open' },
+  },
+  {
+    name: 'the proposer cancels an oracle change',
+    given: [board, { kind: 'OracleChangeProposed', actor: A, proposalId: 'o1', newOracle: NEW_ORACLE }],
+    when: { kind: 'OracleChangeCancelled', actor: A, proposalId: 'o1' },
+    then: { accepted: { oracle: ORACLE } },
+  },
 ]
 
 
@@ -361,7 +553,16 @@ function batch(
   actor: Address,
   fields: { priceCents?: number; quantity?: number } = {},
 ): LedgerRecord {
-  return { kind, actor, eventId: 'party', batchId: 'b1', priceCents: 5500, quantity: 100, ...fields }
+  return {
+    kind,
+    actor,
+    eventId: 'party',
+    batchId: 'b1',
+    priceCents: 5500,
+    quantity: 100,
+    resaleCapPercent: 120,
+    ...fields,
+  }
 }
 
 function ticket(ticketId: string): LedgerRecord {
@@ -373,6 +574,45 @@ function ticket(ticketId: string): LedgerRecord {
     batchId: 'b1',
     owner: STUDENT,
     priceCents: 5500,
+    orderRef: `order-${ticketId}`,
+    paymentRef: ref(ticketId),
+  }
+}
+
+// A stand-in for SHA-256(e2eid): 64 hex characters derived from a label.
+function ref(label: string): string {
+  return Array.from(label, (char) => char.charCodeAt(0).toString(16).padStart(2, '0'))
+    .join('')
+    .padEnd(64, '0')
+}
+
+
+function refund(paymentRef: string, actor: Address = ORACLE): LedgerRecord {
+  return { kind: 'PaymentRefunded', actor, paymentRef, amountCents: 5500, orderRef: 'order-r', reason: 'batch is sold out' }
+}
+
+function reverse(ticketId: string, actor: Address = ORACLE): LedgerRecord {
+  return { kind: 'PaymentReversed', actor, paymentRef: ref(ticketId), ticketId, amountCents: 5500 }
+}
+
+function list(ticketId: string, priceCents: number, actor: Address = STUDENT): LedgerRecord {
+  return { kind: 'TicketListed', actor, ticketId, priceCents }
+}
+
+function settle(listedTicketId: string, ticketId: string, priceCents: number, owner: Address = D): LedgerRecord {
+  const royaltyCents = Math.round(priceCents * 0.1)
+  const platformFeeCents = Math.round(priceCents * 0.05)
+  return {
+    kind: 'ResaleSettled',
+    actor: ORACLE,
+    paymentRef: ref(ticketId),
+    listedTicketId,
+    ticketId,
+    owner,
+    priceCents,
+    royaltyCents,
+    platformFeeCents,
+    payoutCents: priceCents - royaltyCents - platformFeeCents,
     orderRef: `order-${ticketId}`,
   }
 }

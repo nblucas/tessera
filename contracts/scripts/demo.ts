@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { network } from "hardhat";
-import { BaseError, ContractFunctionRevertedError, type Address, type Hex } from "viem";
+import { BaseError, ContractFunctionRevertedError, keccak256, toHex, type Address, type Hex } from "viem";
 import { privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { ledgerDomain, types, type ActionKind } from "../lib/eip712.js";
 import { ASSOCIATION, DEMO_ORACLE_KEY, DEPLOYMENT_FILE, demoPrivateKey } from "./demo-data.js";
@@ -80,6 +80,7 @@ await step("Diego creates a 4th batch for the End of Year Party", async () =>
       batchId: "b4",
       priceCents: 8000n,
       quantity: 100n,
+      resaleCapPercent: 120n,
     }),
   ),
 );
@@ -94,6 +95,7 @@ await step("The oracle issues a ticket from the 3rd batch after a Pix payment", 
       owner: student.account.address,
       priceCents: 7000n,
       orderRef: "demo-order",
+      paymentRef: keccak256(toHex(`demo-payment-${Date.now()}`)),
     }),
   ),
 );
@@ -106,6 +108,7 @@ await step("Elisa tries to raise the 3rd batch's price after its first sale", as
       batchId: "b3",
       priceCents: 9000n,
       quantity: 200n,
+      resaleCapPercent: 120n,
     }),
   ),
 );
@@ -119,6 +122,7 @@ await step("Diego tries to issue a ticket himself", async () =>
       owner: diego.address,
       priceCents: 7000n,
       orderRef: "none",
+      paymentRef: keccak256(toHex("fake-payment")),
     }),
   ),
 );

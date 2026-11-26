@@ -28,7 +28,10 @@ const batchFields = {
   batchId: idSchema,
   priceCents: uintSchema,
   quantity: uintSchema,
+  resaleCapPercent: uintSchema,
 }
+
+const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/, 'invalid SHA-256')
 
 function action<K extends string, S extends z.ZodRawShape>(kind: K, fields: S) {
   return z.object({
@@ -52,6 +55,7 @@ export const signedActionSchema = z.discriminatedUnion('kind', [
     owner: addressSchema,
     priceCents: uintSchema,
     orderRef: idSchema,
+    paymentRef: sha256Schema,
   }),
   action('ExpenseProposed', {
     expenseId: idSchema,
@@ -61,4 +65,27 @@ export const signedActionSchema = z.discriminatedUnion('kind', [
     receiptSha256: z.string().regex(/^[0-9a-f]{64}$/, 'invalid SHA-256'),
   }),
   action('ExpenseVoted', { expenseId: idSchema, approve: z.boolean() }),
+  action('PaymentRefunded', {
+    paymentRef: sha256Schema,
+    amountCents: uintSchema,
+    orderRef: idSchema,
+    reason: z.string().max(200),
+  }),
+  action('PaymentReversed', { paymentRef: sha256Schema, ticketId: idSchema, amountCents: uintSchema }),
+  action('TicketListed', { ticketId: idSchema, priceCents: uintSchema }),
+  action('ListingCancelled', { ticketId: idSchema }),
+  action('ResaleSettled', {
+    paymentRef: sha256Schema,
+    listedTicketId: idSchema,
+    ticketId: idSchema,
+    owner: addressSchema,
+    priceCents: uintSchema,
+    royaltyCents: uintSchema,
+    platformFeeCents: uintSchema,
+    payoutCents: uintSchema,
+    orderRef: idSchema,
+  }),
+  action('OracleChangeProposed', { proposalId: idSchema, newOracle: addressSchema }),
+  action('OracleChangeApproved', { proposalId: idSchema }),
+  action('OracleChangeCancelled', { proposalId: idSchema }),
 ])

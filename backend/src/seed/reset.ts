@@ -15,10 +15,10 @@ export async function resetDemo(deps: Deps) {
     TRUNCATE
       app.associations, app.accounts, app.auth_codes, app.sessions, app.address_challenges,
       app.events, app.batch_names, app.orders, app.receipts, app.expense_details,
-      app.handover_drafts,
+      app.handover_drafts, app.payment_events,
       ledger.entries,
       read.indexer_cursor, read.board_terms, read.handovers, read.batches, read.tickets,
-      read.expenses, read.applied_events
+      read.expenses, read.applied_events, read.payment_reports, read.oracle_changes
     RESTART IDENTITY CASCADE
   `)
   for (const file of files) await deps.files.delete(file.key)

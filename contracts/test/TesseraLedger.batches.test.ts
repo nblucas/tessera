@@ -16,13 +16,14 @@ describe("TesseraLedger batches and tickets", async () => {
   async function deploy({ quantity = 100n, genesisBatch = true } = {}) {
     const { ledger, sign } = await deployLedger([a, b, c]);
     type Tweak = Parameters<typeof sign>[3];
-    if (genesisBatch) await ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, quantity]);
+    if (genesisBatch) await ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, quantity, 120n]);
 
     const batchFields = (batchId: string, priceCents: bigint, quantity: bigint) => ({
       eventId: EVENT,
       batchId,
       priceCents,
       quantity,
+      resaleCapPercent: 120n,
     });
 
     const createBatch = async (actor: Wallet, batchId: string, priceCents: bigint, quantity: bigint) =>
@@ -33,6 +34,7 @@ describe("TesseraLedger batches and tickets", async () => {
       ledger.write.removeBatch(await sign("BatchRemoved", actor, { eventId: EVENT, batchId }));
 
     let nextTicket = 1;
+    let nextPayment = 1;
     const issueTicket = async (
       fields: { ticketId?: string; batchId?: string; priceCents?: bigint; signer?: Wallet } = {},
       tweak?: Tweak,
@@ -48,6 +50,7 @@ describe("TesseraLedger batches and tickets", async () => {
             owner: addressOf(outsider),
             priceCents: fields.priceCents ?? PRICE,
             orderRef: "order-1",
+            paymentRef: `0x${(nextPayment++).toString(16).padStart(64, "0")}`,
           },
           tweak,
         ),
@@ -80,7 +83,7 @@ describe("TesseraLedger batches and tickets", async () => {
     it("only the genesis authority writes genesis batches", async () => {
       const { ledger } = await deploy({ genesisBatch: false });
       await viem.assertions.revertWithCustomError(
-        ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, 10n], { account: outsider.account }),
+        ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, 10n, 120n], { account: outsider.account }),
         ledger,
         "NotGenesisAuthority",
       );
@@ -90,7 +93,7 @@ describe("TesseraLedger batches and tickets", async () => {
       const { ledger, createBatch } = await deploy({ genesisBatch: false });
       await createBatch(a, "b2", PRICE, 10n);
       await viem.assertions.revertWithCustomError(
-        ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, 10n], { account: deployer.account }),
+        ledger.write.createGenesisBatch([EVENT, BATCH, PRICE, 10n, 120n], { account: deployer.account }),
         ledger,
         "GenesisClosed",
       );
@@ -225,6 +228,7 @@ describe("TesseraLedger batches and tickets", async () => {
         addressOf(outsider),
         PRICE,
         "order-1",
+        `0x${(1).toString(16).padStart(64, "0")}`,
       ]);
     });
   });
