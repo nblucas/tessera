@@ -495,6 +495,9 @@ function rejectionFor(error: unknown): LedgerRejection | null {
   if (errorName === 'BadNonce') {
     return new LedgerRejection('bad_nonce', `expected nonce ${String(args?.[0] ?? '')}`)
   }
+  if (errorName === 'AboveResaleCap') {
+    return new LedgerRejection('rule', `price is above the resale cap of ${String(args?.[0] ?? '')} cents`)
+  }
   if (errorName === 'WrongAssociation') {
     return new LedgerRejection('malformed', 'wrong association')
   }

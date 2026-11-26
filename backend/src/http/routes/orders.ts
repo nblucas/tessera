@@ -265,7 +265,7 @@ export function orderRoutes(app: Api, deps: Deps) {
     {
       schema: {
         params: z.object({ orderId: z.uuid() }),
-        body: z.object({ failSettlement: z.boolean().optional() }).optional(),
+        body: z.object({ failSettlement: z.boolean().optional() }).nullish(),
       },
     },
     async (request) => {
