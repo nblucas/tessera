@@ -29,6 +29,22 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 - [x] 16. Balance and treasury summary
 - [x] 17. Download an expense's receipt
 
+### Resale
+
+- [x] 6. Resell a ticket: choose a price, within the batch's resale cap, checked by the ledger
+- [x] 7. List of tickets for resale, with a button to buy; the oracle settles it on the ledger
+
+### Verifiable payments (PD3 feedback)
+
+- [x] 20. Every confirmed Pix payment ends on the ledger as one ticket, one resale or one refund, with its payment reference (SHA-256 of the Pix end-to-end id)
+- [x] 21. Duplicate callbacks are logged and ignored; the ledger refuses a second outcome for the same payment
+- [x] 22. A bank reversal (devolução/MED) revokes the ticket, returns it to stock and is subtracted from income
+- [x] 23. A failed settlement is refunded and reported on the ledger
+- [x] 24. "Who reports payments" and reconciliation checks in the open accounts
+- [x] 25. The board can replace the payment oracle by majority
+- [x] 26. Demo console: resend a webhook, reverse a payment, fail a settlement, try an invalid resale
+- [x] 27. Revenue and cost sensitivity (`BUSINESS.md`)
+
 ### Demo
 
 - [x] 19. "Reset demo data" button that clears all saved data and restores the seed state
@@ -36,11 +52,6 @@ Clickable MVP with mocked data. No real backend or blockchain yet.
 ## Roadmap
 
 Already built, but hidden from the MVP behind flags in `frontend/src/features.ts`. Presented in the pitch as next steps.
-
-### Resale (`resale`)
-
-- [x] 6. Resell a ticket: choose a price, within the resale cap
-- [x] 7. List of tickets for resale, with a button to buy
 
 ### Sellers and commissions (`sellers`)
 

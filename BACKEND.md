@@ -82,10 +82,15 @@ This is the one contract shared with the ledger teammate (`backend/src/ledger/ty
 | `HandoverProposed` | current director | New members' addresses; counts as the proposer's approval |
 | `HandoverApproved` | current director | Majority of current directors starts the new term |
 | `HandoverCancelled` | proposer | Only while the proposal is open |
-| `BatchCreated` | current director | Event id, batch id, price in cents, quantity |
+| `BatchCreated` | current director | Event id, batch id, price in cents, quantity, resale cap (%) |
 | `BatchUpdated` / `BatchRemoved` | current director | Only while the batch has no sales |
 | `OpeningSalesRecorded` | genesis | Seed only: count and amount per batch, labelled as imported |
-| `TicketIssued` | oracle | Ticket id, batch, owner address, price in cents, order reference |
+| `TicketIssued` | oracle | Ticket id, batch, owner address, price in cents, order reference, payment reference |
+| `PaymentRefunded` | oracle | A confirmed payment that did not become a ticket: reference, amount, reason |
+| `PaymentReversed` | oracle | The bank reversed a payment: the ticket is revoked and returns to stock (a resold ticket stays with its buyer) |
+| `TicketListed` / `ListingCancelled` | ticket owner | Price at most the batch price × its resale cap |
+| `ResaleSettled` | oracle | Old ticket resold, new one issued to the buyer, royalty / platform fee / payout |
+| `OracleChangeProposed` / `Approved` / `Cancelled` | current director | A board majority replaces the payment oracle |
 | `ExpenseProposed` | current director | Amount in cents, category, event or general, receipt SHA-256; counts as the proposer's approval |
 | `ExpenseVoted` | current director | Approve or reject |
 | `IncomeRecorded` | — | Reserved for sponsorships; not used in v1 |
@@ -131,12 +136,17 @@ POST /webhooks/pix ─► verify + dedupe by txid ─► status paid ─► job:
 relayer submits ─► ledger ─► indexer ─► status issued ◄────────────────┘
 ```
 
-- **Order states:** `pending_payment → paid → issued`, or `expired` (reservation ran out unpaid), or `failed → refunded`.
+- **Order states:** `pending_payment → paid → issued → reversed`, or `expired` (reservation ran out unpaid), or `failed → refunded`. Orders are for a batch ticket or for a listed resale ticket.
+- **Payment reference:** SHA-256 of the Pix end-to-end id from the webhook. Every outcome the oracle reports carries it, and the ledger accepts one outcome per reference (see `ARCHITECTURE.md`, "The payment trust boundary").
+- **Every notification is logged** (`app.payment_events`) with what was done: accepted, duplicate, wrong amount, reversal, our own refund.
 - **Reservations:** an open order is the reservation (pending and not expired, or paid and not issued yet), so there is no separate table. It expires together with the Pix charge (15 minutes); `expired` is worked out when read. Orders for the same batch take a lock, so the last ticket cannot be held twice.
 - **The frontend polls** `GET /orders/:id` every few seconds behind the existing "Confirming payment…" state.
 - **Webhooks** are verified (HMAC in the demo; the PSP's signature or mTLS in the pilot) and deduplicated by `txid`. A payment for the wrong amount is refunded.
 - **Simulated payments (demo only):** `POST /demo/orders/:id/pay` asks the fake provider for a signed webhook and delivers it in-process through `POST /webhooks/pix`, so it runs the same checks as a real one.
-- **Failures:** temporary errors (ledger down) retry with backoff. Permanent errors (reservation expired and batch sold out, batch removed) mark the order `failed` and refund through `PixProvider`. The fake provider supports refunds so this path can be demoed.
+- **Failures:** temporary errors (ledger down) retry with backoff. Permanent errors (reservation expired and batch sold out, batch removed, listing gone, wrong amount) mark the order `failed`, refund through `PixProvider` and report `PaymentRefunded`.
+- **Reversals:** a webhook with a returned `devolucoes[]` entry of nature `MED_*` reverses an issued order: the oracle reports `PaymentReversed`. Only full reversals are recorded.
+- **Reconciliation:** `GET /reconciliation` compares the oracle's reports with the confirmed payments and runs five checks; the open accounts show it as **Who reports payments**.
+- **Demo console (demo only):** `POST /demo/orders/:id/pay` (optionally with `failSettlement`), `/resend-webhook`, `/reverse`, `GET /demo/orders` and `GET /demo/payment-events`.
 
 ## Indexer
 
@@ -200,9 +210,13 @@ The OpenAPI document is served at `GET /openapi.json`.
 | `POST /handover/:id/propose` | proposer | Submit the signed proposal once every address is known |
 | `POST /handover/:id/approvals` | board | Approve |
 | `POST /handover/:id/cancel` | proposer | Cancel (a signed action once proposed) |
-| `GET /accounts` | public | Open accounts summary and per event |
+| `GET /accounts` | public | Open accounts summary and per event, with royalties and reversals |
+| `GET /reconciliation`, `GET /oracle` | public | Who reports payments, their reports, the reconciliation checks |
+| `POST /oracle/changes`, `/oracle/changes/:id/approvals`, `/oracle/changes/:id/cancel` | board | Replace the payment oracle |
+| `GET /resale` | signed in | Tickets listed for resale |
+| `POST /tickets/:id/listing`, `POST /tickets/:id/listing/cancel` | ticket owner | Signed listing and cancellation |
 | `GET /ledger/events`, `GET /ledger/domain` | public | Raw ledger feed; EIP-712 domain |
-| `POST /demo/orders/:id/pay`, `POST /demo/reset` | demo mode only | Simulate a payment; reset all data |
+| `POST /demo/orders/:id/pay`, `/resend-webhook`, `/reverse`, `GET /demo/orders`, `GET /demo/payment-events`, `POST /demo/reset` | demo mode only | Demo console: simulate payments, duplicates, failed settlements and reversals; reset all data |
 
 ## Database schemas
 

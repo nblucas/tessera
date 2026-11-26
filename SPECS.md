@@ -195,34 +195,53 @@ Tip: use **Reset demo data** to get the original board back.
 
 ---
 
+## Resale
+
+### Resell a ticket
+
+1. In **My tickets**, click **Resell** on a valid ticket.
+2. Enter a price. The form shows the maximum allowed (the batch's resale cap, e.g. 120% of face value) and how the price splits: 10% to the association, 5% platform fee, the rest to you via Pix.
+3. Click **List for sale**. The listing is signed with your wallet and checked by the ledger: only the owner can list, only a valid ticket (not revoked, not already listed) and only within the cap. A refusal shows the ledger's reason, for example "price is above the resale cap of 6600 cents".
+4. The ticket becomes *Listed for resale*, loses its QR code and gets a **Cancel listing** button.
+
+### Buy a resale ticket
+
+1. Sign in with another e-mail and open **Resale** (or the **Resale** section on the event page). Your own listings show *Your listing* instead of **Buy**.
+2. Click **Buy**, then **Simulate payment**.
+3. The oracle settles the resale on the ledger: the seller's ticket becomes *Resold*, the buyer gets a new valid ticket, and the seller's share is paid by Pix.
+4. In **Open accounts**, the association's 10% shows up as **Resale royalties**.
+
+The event form has a **Resale cap (%)** field, applied to every batch without sales.
+
+---
+
+## PD3 demo: payments you can verify
+
+Run everything on the local chain so the ledger claims are real (see `contracts/ADAPTER.md`): `npm run node` and `npm run deploy:local` in `contracts/`, then the backend with `LEDGER_RPC_URL` and an empty database, then the frontend. The **Demo console** (top bar, demo mode only) plays the bank's part: every button sends what a Pix provider would send, through the same signed webhook.
+
+**Who is trusted.** Open **Open accounts → Payments**. The box **Who reports payments** names the payment oracle (its address), what it may and may not do, and how many tickets, resales, refunds and reversals it reported. The five reconciliation checks compare its reports with the payments the bank confirmed. A board majority can replace the oracle in **Board → Handover → Payment oracle**.
+
+1. **Sale → payment → ticket.** Sign in as `ana@student.edu`, buy a ticket for **End of Year Party** and click **Simulate payment**. The ticket appears in **My tickets**. In the console the order shows its payment reference (SHA-256 of the Pix end-to-end id), and **Open accounts** lists it as *Ticket issued*.
+2. **Duplicate callback.** In the console, click **Resend webhook (duplicate)** on that order. The notifications list shows *Duplicate callback ignored*; there is still one ticket, and the ledger would refuse a second outcome for the same payment reference anyway.
+3. **Reversed payment.** Click **Reverse payment (MED)**: the bank returns the money to the payer. The ticket becomes *Revoked: payment reversed by the bank*, its place goes back on sale, and **Open accounts** shows *Payments reversed by the bank −R$ 55,00* under the event.
+4. **Failed settlement.** Start another purchase, leave the checkout and in the console click **Pay, settlement fails**. The payment is refunded and reported: **Open accounts** lists it as *Refunded*, with the reason.
+5. **Invalid resale.** In **My tickets**, try to resell a ticket above its cap: the ledger refuses it. In the console, click **Try to resell it as me** on someone else's ticket: refused, *only the owner lists a ticket*. Trying to resell the revoked ticket from step 3 is refused too.
+6. **Valid resale.** List a ticket within the cap, sign in as another student and buy it. The royalty appears in **Open accounts**.
+7. **Reconciliation.** Back in **Open accounts → Payments**, every check shows ✓: each payment has one outcome, every outcome matches a payment the bank confirmed, every confirmed payment has its outcome, and every reversal points to the ticket it paid for.
+
+---
+
 ## Roadmap flows (hidden in the MVP)
 
 These features are built but turned off to keep the MVP focused. To try them, set the flag to `true` in `frontend/src/features.ts` and reload:
 
 ```ts
 export const FEATURES = {
-  resale: false,
+  resale: true,
   sellers: false,
   gate: false,
 }
 ```
-
-### Resale (`resale: true`)
-
-**Resell a ticket**
-
-1. In **My tickets**, click **Resell** on a valid ticket.
-2. Enter a price. The form shows the maximum allowed (the event's resale cap, e.g. 120% of face value) and how the price splits: 10% to the association, 5% platform fee, the rest to you via Pix.
-3. Click **List for sale**. The ticket becomes *Listed for resale*, loses its QR code (it can't be used at the entrance while listed) and gets a **Cancel listing** button.
-
-**Buy a resale ticket**
-
-1. Sign in with another e-mail and open **Resale** (or the **Resale** section on the event page). Your own listings show *Your listing* instead of **Buy**.
-2. Click **Buy**, then **Simulate payment**.
-3. The seller's ticket becomes *Resold* and the buyer gets a new valid ticket.
-4. In **Open accounts**, the association's 10% shows up as **Resale royalties**.
-
-The event form also gets a **Resale cap (%)** field.
 
 ### Sellers and commissions (`sellers: true`)
 
@@ -255,4 +274,6 @@ With this flag on, the QR code in **My tickets** changes every 30 seconds, so a 
 - **Wallet keys live in one browser.** An account created in one browser cannot sign board actions from another; clearing the browser data loses the key. The seed directors are the exception.
 - **Fake QR and Pix codes.** They cannot be read by a camera or bank app; the gate uses the ticket code instead.
 - **No sponsorships yet.** The open accounts only show ticket income.
-- **Roadmap features keep local data.** Resale, sellers and gate are not supported by the backend yet; with their flags on they use the browser or show an error.
+- **Roadmap features keep local data.** Sellers and gate are not supported by the backend yet; with their flags on they use the browser or show an error.
+- **Reversals.** Only full reversals are recorded; a partial devolução is not. Reversing a payment whose ticket was already resold is recorded as an income loss, and the buyer keeps their ticket.
+- **One trusted oracle.** The oracle can still lie about a payment it never received; the reconciliation checks and the payment references let a treasurer with the bank statement catch it, and the board can replace it.

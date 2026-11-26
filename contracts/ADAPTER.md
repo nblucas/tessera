@@ -86,6 +86,14 @@ Every signed function takes `(message, signature)`, where `message` is `action.m
 | `TicketIssued` | `issueTicket` |
 | `ExpenseProposed` | `proposeExpense` |
 | `ExpenseVoted` | `voteExpense` |
+| `PaymentRefunded` | `refundPayment` |
+| `PaymentReversed` | `reversePayment` |
+| `TicketListed` | `listTicket` |
+| `ListingCancelled` | `cancelListing` |
+| `ResaleSettled` | `settleResale` |
+| `OracleChangeProposed` | `proposeOracleChange` |
+| `OracleChangeApproved` | `approveOracleChange` |
+| `OracleChangeCancelled` | `cancelOracleChange` |
 
 ### Converting the message
 
@@ -140,6 +148,24 @@ The backend shows a `LedgerRejection` as HTTP 409 with its message (`../backend/
 | `UnknownExpense` | `rule` | unknown expense |
 | `ExpenseNotPending` | `rule` | expense is not pending |
 | `AlreadyVoted` | `rule` | already voted |
+| `InvalidResaleCap` | `rule` | resale cap must be a whole percentage of at least 100 |
+| `OnlyOracleReports` | `rule` | only the oracle reports payments |
+| `InvalidPaymentRef` | `rule` | payment reference must be a SHA-256 hex |
+| `PaymentAlreadyReported` | `rule` | payment already reported |
+| `PaymentAlreadyReversed` | `rule` | payment already reversed |
+| `UnknownTicket` | `rule` | unknown ticket |
+| `PaymentDoesNotMatchTicket` | `rule` | payment does not match the ticket |
+| `TicketNotValid` | `rule` | ticket is not valid |
+| `TicketNotValidForResale` | `rule` | ticket is not valid for resale |
+| `OnlyOwnerLists` / `OnlyOwnerCancels` | `rule` | only the owner lists a ticket / cancels a listing |
+| `AboveResaleCap(max)` | `rule` | price is above the resale cap of `{max}` cents |
+| `TicketNotListed` | `rule` | ticket is not listed |
+| `OwnListing` | `rule` | nobody buys their own listing |
+| `ListedPriceMismatch` | `rule` | price does not match the listed price |
+| `ResaleSplitMismatch` | `rule` | resale split does not match the fixed percentages |
+| `OracleChangeAlreadyOpen` | `rule` | oracle change already open |
+| `AlreadyOracle` | `rule` | this is already the oracle |
+| `NoOpenOracleChangeWithThisId` | `rule` | no open oracle change with this id |
 
 Any other failure (chain down, out of gas) is not a `LedgerRejection`. Let it throw, so the oracle's job retries with backoff.
 
@@ -156,7 +182,7 @@ Send each record in order from the relayer's key, which is the genesis authority
 | Record | Contract call |
 |---|---|
 | `BoardSet` | `setBoard(members)` |
-| `BatchCreated` (with `actor: null`) | `createGenesisBatch(eventId, batchId, priceCents, quantity)` |
+| `BatchCreated` (with `actor: null`) | `createGenesisBatch(eventId, batchId, priceCents, quantity, resaleCapPercent)` |
 | `OpeningSalesRecorded` | `recordOpeningSales(eventId, batchId, count, amountCents)` |
 
 `association` must be the contract's (`association()` returns it). Genesis is refused after the first signed action.
@@ -165,7 +191,7 @@ Send each record in order from the relayer's key, which is the genesis authority
 
 ### Which events
 
-Read the contract's logs in order (`getContractEvents` with the ABI). Skip `TermStarted` and `ExpenseDecided`: they are conveniences, and the indexer works both out itself. Every other event is one ledger record.
+Read the contract's logs in order (`getContractEvents` with the ABI). Skip `TermStarted`, `ExpenseDecided` and `OracleChanged`: they are conveniences, and the indexer works them out itself. Every other event is one ledger record. `receiptSha256` and `paymentRef` drop their `0x`.
 
 ### From event to record
 
